@@ -1,0 +1,19 @@
+use std::fmt::{Display, Formatter, Result};
+
+pub struct OsInfo {
+    pub name: String,
+    pub host: String,
+    pub kernel: String,
+    pub age: String,
+    pub uptime: String,
+}
+
+impl Display for OsInfo {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(
+            f,
+            "OS: {}\nHost: {}\nKernel: {}\nAge: {}\nUptime: {}",
+            self.name, self.host, self.kernel, self.age, self.uptime
+        )
+    }
+}

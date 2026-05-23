@@ -1,4 +1,5 @@
 mod telegram_interface;
+pub mod os;
 
 use crate::telegram_interface::start_bot;
 
