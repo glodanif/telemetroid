@@ -1,10 +1,8 @@
-use crate::os::info_source::OsInfoSource;
+use crate::os::os_info::OsInfo;
 
-pub mod os_info;
-pub mod info_source;
-#[cfg(not(target_os = "macos"))]
 pub mod linux_info_source;
+pub mod os_info;
 
-pub fn get_os_info_source() -> Box<dyn OsInfoSource> {
-    Box::new(linux_info_source::LinuxInfoSource)
+pub fn collect_os_info() -> OsInfo {
+    linux_info_source::collect_info()
 }

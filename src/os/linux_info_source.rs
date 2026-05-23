@@ -1,18 +1,14 @@
-use crate::os::info_source::OsInfoSource;
 use crate::os::os_info::OsInfo;
 use std::fs;
 use std::time::SystemTime;
 
-pub struct LinuxInfoSource;
-
-impl OsInfoSource for LinuxInfoSource {
-    fn collect_info(&self) -> OsInfo {
-        OsInfo {
-            name: read_os_name(),
-            kernel: read_kernel(),
-            age: read_os_age(),
-            uptime: read_uptime(),
-        }
+pub fn collect_info() -> OsInfo {
+    OsInfo {
+        name: read_os_name(),
+        host: read_host(),
+        kernel: read_kernel(),
+        age: read_os_age(),
+        uptime: read_uptime(),
     }
 }
 
@@ -37,6 +33,39 @@ fn read_kernel() -> String {
         .ok()
         .and_then(|content| content.split_whitespace().nth(2).map(|v| v.to_string()))
         .unwrap_or_else(|| "Unknown".into())
+}
+
+fn is_dmi_placeholder(s: &str) -> bool {
+    matches!(
+        s.to_ascii_lowercase().as_str(),
+        "system product name"
+            | "system version"
+            | "to be filled by o.e.m."
+            | "default string"
+            | "not specified"
+            | "none"
+            | "n/a"
+    )
+}
+
+fn read_host() -> Option<String> {
+    let name = fs::read_to_string("/sys/devices/virtual/dmi/id/product_name")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty() && !is_dmi_placeholder(s))
+        .unwrap_or_default();
+
+    let version = fs::read_to_string("/sys/devices/virtual/dmi/id/product_version")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty() && !is_dmi_placeholder(s))
+        .unwrap_or_default();
+
+    match (name.is_empty(), version.is_empty()) {
+        (false, false) => Some(format!("{name} {version}")),
+        (false, true) => Some(name),
+        _ => None,
+    }
 }
 
 fn read_os_age() -> String {
