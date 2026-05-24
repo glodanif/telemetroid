@@ -1,8 +1,8 @@
-use crate::os::os_info::OsInfo;
+use crate::info_collector::os_info::OsInfo;
 use std::fs;
 use std::time::SystemTime;
 
-pub fn collect_info() -> OsInfo {
+pub fn collect() -> OsInfo {
     OsInfo {
         name: read_os_name(),
         host: read_host(),
@@ -12,7 +12,7 @@ pub fn collect_info() -> OsInfo {
     }
 }
 
-fn read_os_name() -> String {
+fn read_os_name() -> Option<String> {
     fs::read_to_string("/etc/os-release")
         .ok()
         .and_then(|content| {
@@ -25,14 +25,12 @@ fn read_os_name() -> String {
                         .to_string()
                 })
         })
-        .unwrap_or_else(|| "Unknown".into())
 }
 
-fn read_kernel() -> String {
+fn read_kernel() -> Option<String> {
     fs::read_to_string("/proc/version")
         .ok()
         .and_then(|content| content.split_whitespace().nth(2).map(|v| v.to_string()))
-        .unwrap_or_else(|| "Unknown".into())
 }
 
 fn is_dmi_placeholder(s: &str) -> bool {
@@ -68,46 +66,38 @@ fn read_host() -> Option<String> {
     }
 }
 
-fn read_os_age() -> String {
+fn read_os_age() -> Option<String> {
     let meta = fs::metadata("/").ok();
     let created = meta.and_then(|m| m.created().ok());
-    let elapsed = created.and_then(|c| SystemTime::now().duration_since(c).ok());
+    let elapsed = created.and_then(|c| SystemTime::now().duration_since(c).ok())?;
 
-    match elapsed {
-        None => "Unknown".into(),
-        Some(e) => {
-            let total_days = e.as_secs() / 86400;
-            let years = total_days / 365;
-            let months = (total_days % 365) / 30;
-            let days = total_days % 30;
-            match (years, months, days) {
-                (0, 0, d) => format!("{d} days"),
-                (0, m, d) => format!("{m} months, {d} days"),
-                (y, m, d) => format!("{y} years, {m} months, {d} days"),
-            }
-        }
-    }
+    let total_days = elapsed.as_secs() / 86400;
+    let years = total_days / 365;
+    let months = (total_days % 365) / 30;
+    let days = total_days % 30;
+    let string = match (years, months, days) {
+        (0, 0, d) => format!("{d} days"),
+        (0, m, d) => format!("{m} months, {d} days"),
+        (y, m, d) => format!("{y} years, {m} months, {d} days"),
+    };
+    Some(string)
 }
 
-fn read_uptime() -> String {
+fn read_uptime() -> Option<String> {
     let content = fs::read_to_string("/proc/uptime").ok();
     let seconds = content
         .as_deref()
         .and_then(|s| s.split_whitespace().next())
-        .and_then(|s| s.parse::<f64>().ok());
+        .and_then(|s| s.parse::<f64>().ok())?;
 
-    match seconds {
-        None => "Unknown".into(),
-        Some(secs) => {
-            let total_minutes = secs as u64 / 60;
-            let days = total_minutes / 1440;
-            let hours = (total_minutes % 1440) / 60;
-            let minutes = total_minutes % 60;
-            match (days, hours, minutes) {
-                (0, 0, m) => format!("{m} mins"),
-                (0, h, m) => format!("{h} hours, {m} mins"),
-                (d, h, m) => format!("{d} days, {h} hours, {m} mins"),
-            }
-        }
-    }
+    let total_minutes = seconds as u64 / 60;
+    let days = total_minutes / 1440;
+    let hours = (total_minutes % 1440) / 60;
+    let minutes = total_minutes % 60;
+    let string = match (days, hours, minutes) {
+        (0, 0, m) => format!("{m} mins"),
+        (0, h, m) => format!("{h} hours, {m} mins"),
+        (d, h, m) => format!("{d} days, {h} hours, {m} mins"),
+    };
+    Some(string)
 }

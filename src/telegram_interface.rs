@@ -5,7 +5,7 @@ use teloxide::repls::CommandReplExt;
 use teloxide::requests::{Requester, ResponseResult};
 use teloxide::types::Message;
 use teloxide::utils::command::BotCommands;
-use crate::os;
+use crate::info_collector;
 
 pub async fn start_bot() {
     let bot = Bot::from_env();
@@ -19,8 +19,8 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                 .await?
         }
         Command::Os => {
-            let os_info = os::collect_os_info();
-            bot.send_message(msg.chat.id, os_info.to_string()).await?
+            let info = info_collector::collect();
+            bot.send_message(msg.chat.id, info.to_string()).await?
         }
     };
     Ok(())
