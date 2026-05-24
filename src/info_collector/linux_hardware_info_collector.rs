@@ -367,10 +367,11 @@ fn determine_gpu_type(device_path: &Path, vendor: &str) -> Option<GpuType> {
     if vendor == "0x8086" {
         return Some(GpuType::Integrated);
     }
-    // AMD: dedicated VRAM > 512 MiB → discrete, otherwise integrated (APU)
+    // AMD APUs share system memory as VRAM (typically 256 MiB–2 GiB).
+    // All modern AMD discrete GPUs have at least 4 GiB of dedicated GDDR.
     if let Ok(vram_str) = fs::read_to_string(device_path.join("mem_info_vram_total")) {
         if let Ok(vram) = vram_str.trim().parse::<u64>() {
-            return Some(if vram >= 512 * 1024 * 1024 {
+            return Some(if vram >= 4 * 1024 * 1024 * 1024 {
                 GpuType::Discrete
             } else {
                 GpuType::Integrated
