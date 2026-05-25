@@ -1,9 +1,10 @@
 mod command;
 use crate::telegram_interface::command::Command;
 use teloxide::Bot;
+use teloxide::payloads::SendMessageSetters;
 use teloxide::repls::CommandReplExt;
 use teloxide::requests::{Requester, ResponseResult};
-use teloxide::types::Message;
+use teloxide::types::{Message, ParseMode};
 use teloxide::utils::command::BotCommands;
 use crate::info_collector;
 
@@ -20,7 +21,9 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
         }
         Command::Os => {
             let info = info_collector::collect();
-            bot.send_message(msg.chat.id, info.to_string()).await?
+            bot.send_message(msg.chat.id, info.to_string())
+                .parse_mode(ParseMode::Html)
+                .await?
         }
     };
     Ok(())

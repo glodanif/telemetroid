@@ -2,9 +2,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use crate::info_collector::hardware_info::{
-    CpuInfo, DiskInfo, GpuInfo, GpuType, HardwareInfo, MemoryInfo,
-};
+use crate::info_collector::hardware_info::{CpuInfo, DiskInfo, GpuInfo, GpuType, HardwareInfo, MemoryInfo, NetworkInfo};
 
 pub fn collect() -> HardwareInfo {
     HardwareInfo {
@@ -13,6 +11,7 @@ pub fn collect() -> HardwareInfo {
         swap: read_swap_info(),
         memory: read_memory_info(),
         disks: read_disks_info(),
+        network: read_network_infos(),
     }
 }
 
@@ -447,4 +446,49 @@ fn read_disks_info() -> Vec<DiskInfo> {
             })
         })
         .collect()
+}
+
+fn read_network_infos() -> Vec<NetworkInfo> {
+    let content = match fs::read_to_string("/proc/net/dev") {
+        Ok(c) => c,
+        Err(_) => return vec![],
+    };
+
+    content
+        .lines()
+        .skip(2)
+        .filter_map(|line| {
+            let (name, rest) = line.trim().split_once(':')?;
+            let name = name.trim().to_string();
+            if name == "lo" {
+                return None;
+            }
+            let fields: Vec<u64> = rest
+                .split_whitespace()
+                .filter_map(|s| s.parse().ok())
+                .collect();
+            if fields.len() < 9 {
+                return None;
+            }
+            let rx_bytes = fields[0];
+            let tx_bytes = fields[8];
+            let ip_address = read_interface_ipv4(&name);
+            Some(NetworkInfo { name, ip_address, rx_bytes, tx_bytes })
+        })
+        .collect()
+}
+
+fn read_interface_ipv4(iface: &str) -> Option<String> {
+    let output = Command::new("ip")
+        .args(["-4", "addr", "show", "scope", "global", iface])
+        .output()
+        .ok()?;
+    let stdout = String::from_utf8(output.stdout).ok()?;
+    stdout
+        .lines()
+        .map(|l| l.trim())
+        .find(|l| l.starts_with("inet "))
+        .and_then(|l| l.split_whitespace().nth(1))
+        .and_then(|s| s.split('/').next())
+        .map(|s| s.to_string())
 }

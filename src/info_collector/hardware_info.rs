@@ -4,6 +4,7 @@ pub struct HardwareInfo {
     pub swap: Option<MemoryInfo>,
     pub memory: Option<MemoryInfo>,
     pub disks: Vec<DiskInfo>,
+    pub network: Vec<NetworkInfo>,
 }
 
 pub struct CpuInfo {
@@ -34,4 +35,11 @@ pub struct DiskInfo {
     pub used: u64,
     pub mount: String,
     pub filesystem: String,
+}
+
+pub struct NetworkInfo {
+    pub name: String,
+    pub ip_address: Option<String>,
+    pub rx_bytes: u64,
+    pub tx_bytes: u64,
 }
