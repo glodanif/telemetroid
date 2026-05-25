@@ -52,7 +52,7 @@ impl Display for Info {
             writeln!(f, "<b>Load:</b> {}% · {}% · {}%  <i>(1/5/15 min)</i>", pct(a), pct(b), pct(c))?;
         }
 
-        writeln!(f, "\n──────────────────────\n")?;
+        writeln!(f)?;
 
         match &hw.cpu {
             Some(cpu) => {
@@ -78,6 +78,8 @@ impl Display for Info {
             }
             writeln!(f)?;
         }
+
+        writeln!(f)?;
 
         match &hw.memory {
             Some(mem) => {
