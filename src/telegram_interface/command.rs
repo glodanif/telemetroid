@@ -5,6 +5,8 @@ use teloxide::macros::BotCommands;
 pub enum Command {
     #[command(description = "Display this text")]
     Help,
-    #[command(description = "OS info")]
-    Os,
+    #[command(description = "Status info")]
+    Status,
+    #[command(description = "Check for available package updates")]
+    Updates,
 }

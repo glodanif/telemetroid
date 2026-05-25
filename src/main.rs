@@ -1,5 +1,6 @@
 mod telegram_interface;
 pub mod info_collector;
+mod system_update;
 
 use crate::telegram_interface::start_bot;
 
