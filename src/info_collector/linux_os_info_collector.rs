@@ -9,6 +9,7 @@ pub fn collect() -> OsInfo {
         kernel: read_kernel(),
         age: read_os_age(),
         uptime: read_uptime(),
+        load_avg: read_load_avg(),
     }
 }
 
@@ -81,6 +82,15 @@ fn read_os_age() -> Option<String> {
         (y, m, d) => format!("{y} years, {m} months, {d} days"),
     };
     Some(string)
+}
+
+fn read_load_avg() -> Option<(f32, f32, f32)> {
+    let content = fs::read_to_string("/proc/loadavg").ok()?;
+    let mut parts = content.split_whitespace();
+    let a = parts.next()?.parse().ok()?;
+    let b = parts.next()?.parse().ok()?;
+    let c = parts.next()?.parse().ok()?;
+    Some((a, b, c))
 }
 
 fn read_uptime() -> Option<String> {

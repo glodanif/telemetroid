@@ -46,6 +46,11 @@ impl Display for Info {
         if let Some(kernel) = &os.kernel { writeln!(f, "<b>Kernel:</b> {}", kernel)?; }
         if let Some(age) = &os.age { writeln!(f, "<b>Age:</b> {}", age)?; }
         if let Some(uptime) = &os.uptime { writeln!(f, "<b>Uptime:</b> {}", uptime)?; }
+        if let Some((a, b, c)) = os.load_avg {
+            let cores = hw.cpu.as_ref().map(|c| c.cores as f32).unwrap_or(1.0);
+            let pct = |v: f32| (v / cores * 100.0).round() as u32;
+            writeln!(f, "<b>Load:</b> {}% · {}% · {}%  <i>(1/5/15 min)</i>", pct(a), pct(b), pct(c))?;
+        }
 
         writeln!(f, "\n──────────────────────\n")?;
 
