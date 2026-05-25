@@ -47,7 +47,7 @@ impl Display for Info {
         if let Some(age) = &os.age { writeln!(f, "<b>Age:</b> {}", age)?; }
         if let Some(uptime) = &os.uptime { writeln!(f, "<b>Uptime:</b> {}", uptime)?; }
 
-        writeln!(f, "\n──────────────────────\n")?;
+        writeln!(f)?;
 
         match &hw.cpu {
             Some(cpu) => {
@@ -73,6 +73,8 @@ impl Display for Info {
             }
             writeln!(f)?;
         }
+
+        writeln!(f)?;
 
         match &hw.memory {
             Some(mem) => {
