@@ -29,14 +29,16 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
         Command::Updates => {
             let text = match system_update::check_updates() {
                 Ok(updates) if updates.is_empty() => "System is up to date".to_string(),
-                Ok(updates) => updates
-                    .iter()
-                    .map(|u| u.to_string())
-                    .collect::<Vec<_>>()
-                    .join("\n"),
+                Ok(updates) => format!(
+                    "<b>Available updates: {}</b>\n\n{}",
+                    updates.len(),
+                    updates.iter().map(|u| u.to_string()).collect::<Vec<_>>().join("\n")
+                ),
                 Err(e) => format!("Failed to check updates: {}", e),
             };
-            bot.send_message(msg.chat.id, text).await?
+            bot.send_message(msg.chat.id, text)
+                .parse_mode(ParseMode::Html)
+                .await?
         }
     };
     Ok(())
