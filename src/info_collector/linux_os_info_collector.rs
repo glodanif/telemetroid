@@ -51,18 +51,16 @@ fn read_host() -> Option<String> {
     let name = fs::read_to_string("/sys/devices/virtual/dmi/id/product_name")
         .ok()
         .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty() && !is_dmi_placeholder(s))
-        .unwrap_or_default();
+        .filter(|s| !s.is_empty() && !is_dmi_placeholder(s));
 
     let version = fs::read_to_string("/sys/devices/virtual/dmi/id/product_version")
         .ok()
         .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty() && !is_dmi_placeholder(s))
-        .unwrap_or_default();
+        .filter(|s| !s.is_empty() && !is_dmi_placeholder(s));
 
-    match (name.is_empty(), version.is_empty()) {
-        (false, false) => Some(format!("{name} {version}")),
-        (false, true) => Some(name),
+    match (name, version) {
+        (Some(n), Some(v)) => Some(format!("{n} {v}")),
+        (Some(n), None) => Some(n),
         _ => None,
     }
 }

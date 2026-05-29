@@ -1,19 +1,24 @@
 use crate::system_update::available_package_update::AvailablePackageUpdate;
+use crate::system_update::update_check_error::UpdateCheckError;
 use std::collections::HashMap;
 use std::process::Command;
 
-pub fn check_updates() -> Result<Vec<AvailablePackageUpdate>, String> {
+pub fn check_updates() -> Result<Vec<AvailablePackageUpdate>, UpdateCheckError> {
     let output = Command::new("xbps-install")
         .args(["-Sun"])
         .output()
-        .map_err(|e| format!("Failed to run xbps-install: {}", e))?;
+        .map_err(|e| {
+            UpdateCheckError::CommandExecutionError("xbps-install -Sun".to_string(), e.to_string())
+        })?;
 
     if !output.stderr.is_empty() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("xbps-install error: {}", stderr.trim()));
+        return Err(UpdateCheckError::CommandExecutionError(
+            "xbps-install -Sun".to_string(),
+            stderr.trim().to_string(),
+        ));
     }
 
-    // Each line: "pkgname-newver arch -> repourl"
     let pending: Vec<(String, String)> = String::from_utf8_lossy(&output.stdout)
         .lines()
         .filter(|line| !line.trim().is_empty())
@@ -33,13 +38,15 @@ pub fn check_updates() -> Result<Vec<AvailablePackageUpdate>, String> {
         .into_iter()
         .map(|(name, to_version)| {
             let from_version = installed.get(&name).cloned().unwrap_or_default();
-            AvailablePackageUpdate { name, from_version, to_version }
+            AvailablePackageUpdate {
+                name,
+                from_version,
+                to_version,
+            }
         })
         .collect())
 }
 
-// Splits "pkgname-1.2.3_1" into ("pkgname", "1.2.3_1").
-// xbps convention: split at the last '-' followed by a digit.
 fn split_pkg_ver(s: &str) -> Option<(String, String)> {
     let bytes = s.as_bytes();
     for i in (0..bytes.len().saturating_sub(1)).rev() {
@@ -50,13 +57,14 @@ fn split_pkg_ver(s: &str) -> Option<(String, String)> {
     None
 }
 
-fn query_installed() -> Result<HashMap<String, String>, String> {
+fn query_installed() -> Result<HashMap<String, String>, UpdateCheckError> {
     let output = Command::new("xbps-query")
         .args(["-l"])
         .output()
-        .map_err(|e| format!("Failed to run xbps-query: {}", e))?;
+        .map_err(|e| {
+            UpdateCheckError::CommandExecutionError("xbps-query -l".to_string(), e.to_string())
+        })?;
 
-    // Each line: "ii pkgname-ver  description"
     Ok(String::from_utf8_lossy(&output.stdout)
         .lines()
         .filter_map(|line| {
