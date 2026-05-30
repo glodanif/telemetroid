@@ -7,7 +7,9 @@ use crate::telegram_interface::start_bot;
 
 #[tokio::main]
 async fn main() {
-    pretty_env_logger::init();
+    pretty_env_logger::formatted_builder()
+        .filter_level(log::LevelFilter::Debug)
+        .init();
     log::info!("Starting telemetroid...");
     start_bot().await;
 }
