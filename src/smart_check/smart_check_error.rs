@@ -6,4 +6,6 @@ pub enum SmartCheckError {
     CommandExecutionError(String, String),
     #[error("Failed to start async task: {0}")]
     SpawnError(String),
+    #[error("Unable to scan for drives: {0}")]
+    ScanError(String),
 }

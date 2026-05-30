@@ -85,9 +85,18 @@ async fn answer(
 fn start_smart_check(bot: Bot, chat_id: ChatId, is_smart_check_running: Arc<AtomicBool>) {
     tokio::spawn(async move {
         is_smart_check_running.store(true, Ordering::Relaxed);
-        let text = smart_check()
-            .await
-            .unwrap_or_else(|_| "Failed to perform smart check".to_string());
+        let check_results = smart_check().await;
+        let text = match check_results {
+            Ok(results) => format!(
+                "<b>Smart check results:</b>\n\n{}",
+                results
+                    .iter()
+                    .map(|r| format!("{}\n", r))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ),
+            Err(e) => format!("Failed to perform smart check: {}", e),
+        };
         if let Err(e) = bot.send_message(chat_id, text).await {
             log::error!("Failed to send message: {}", e);
         }
