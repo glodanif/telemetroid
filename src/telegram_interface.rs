@@ -97,7 +97,11 @@ fn start_smart_check(bot: Bot, chat_id: ChatId, is_smart_check_running: Arc<Atom
             ),
             Err(e) => format!("Failed to perform smart check: {}", e),
         };
-        if let Err(e) = bot.send_message(chat_id, text).await {
+        if let Err(e) = bot
+            .send_message(chat_id, text)
+            .parse_mode(ParseMode::Html)
+            .await
+        {
             log::error!("Failed to send message: {}", e);
         }
         is_smart_check_running.store(false, Ordering::Relaxed);
