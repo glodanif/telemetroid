@@ -1,10 +1,50 @@
-use crate::smart_check::power_on_time::SmartctlJson;
+use crate::smart_check::drive_info::DriveInfo;
 use crate::smart_check::smart_check_error::SmartCheckError;
 use crate::smart_check::smart_check_result::{SmartCheckFailure, SmartCheckResult};
 use std::process::Command;
 use tokio::task;
 
 const SMARTCTL: &str = "smartctl";
+
+pub struct PrepareSmartCheckResult {
+    pub can_proceed: bool,
+    pub drives_info: Vec<Result<DriveInfo, SmartCheckFailure>>,
+}
+
+pub async fn prepare_smart_check() -> Result<PrepareSmartCheckResult, SmartCheckError> {
+    let result = task::spawn_blocking(get_drives_info)
+        .await
+        .map_err(|e| SmartCheckError::SpawnError(e.to_string()))??;
+    let drives_number = result.len();
+
+    let mut failed_preparations = 0;
+    for r in &result {
+        if r.is_err() {
+            failed_preparations += 1;
+        }
+    }
+
+    Ok(PrepareSmartCheckResult {
+        can_proceed: failed_preparations < drives_number,
+        drives_info: result,
+    })
+}
+
+fn get_drives_info() -> Result<Vec<Result<DriveInfo, SmartCheckFailure>>, SmartCheckError> {
+    let drives = scan_drives()?;
+    let mut results = Vec::new();
+    for drive in drives.iter() {
+        let result = get_drive_info(drive);
+        match result {
+            Ok(info) => results.push(Ok(info)),
+            Err(e) => results.push(Err(SmartCheckFailure {
+                drive_name: drive.clone(),
+                message: e.to_string(),
+            })),
+        }
+    }
+    Ok(results)
+}
 
 pub async fn smart_check()
 -> Result<Vec<Result<SmartCheckResult, SmartCheckFailure>>, SmartCheckError> {
@@ -17,18 +57,18 @@ fn scan_and_check_drives()
 -> Result<Vec<Result<SmartCheckResult, SmartCheckFailure>>, SmartCheckError> {
     let drives = scan_drives()?;
     let mut results = Vec::new();
-    for drive in drives.iter() {
-        let result = get_power_on_time(drive);
-        match result {
-            Ok(hours) => results.push(Ok(SmartCheckResult {
-                drive_name: drive.clone(),
-                power_on_time: hours,
-            })),
-            Err(e) => results.push(Err(SmartCheckFailure {
-                message: e.to_string(),
-            })),
-        }
-    }
+    // for drive in drives.iter() {
+    //     let result = get_power_on_time(drive);
+    //     match result {
+    //         Ok(hours) => results.push(Ok(SmartCheckResult {
+    //             drive_name: drive.clone(),
+    //             power_on_time: hours,
+    //         })),
+    //         Err(e) => results.push(Err(SmartCheckFailure {
+    //             message: e.to_string(),
+    //         })),
+    //     }
+    // }
     Ok(results)
 }
 
@@ -44,13 +84,13 @@ fn scan_drives() -> Result<Vec<String>, SmartCheckError> {
         .collect()
 }
 
-fn get_power_on_time(drive_name: &str) -> Result<u32, SmartCheckError> {
+fn get_drive_info(drive_name: &str) -> Result<DriveInfo, SmartCheckError> {
     let output = execute_command(SMARTCTL, &["--json", "-a", drive_name])?;
     let json_str =
         String::from_utf8(output).map_err(|e| SmartCheckError::FormatError(e.to_string()))?;
-    let result: SmartctlJson =
+    let result: DriveInfo =
         serde_json::from_str(&json_str).map_err(|e| SmartCheckError::FormatError(e.to_string()))?;
-    Ok(result.power_on_time.hours)
+    Ok(result)
 }
 
 fn execute_command(command: &str, arguments: &[&str]) -> Result<Vec<u8>, SmartCheckError> {
