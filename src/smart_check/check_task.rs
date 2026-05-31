@@ -55,7 +55,8 @@ fn get_power_on_time(drive_name: &str) -> Result<u32, SmartCheckError> {
 
 fn execute_command(command: &str, arguments: &[&str]) -> Result<Vec<u8>, SmartCheckError> {
     let cmd_str = format!("{} {}", command, arguments.join(" "));
-    let output = Command::new(command)
+    let output = Command::new("sudo")
+        .arg(command)
         .args(arguments)
         .output()
         .map_err(|e| SmartCheckError::CommandExecutionError(cmd_str.clone(), e.to_string()))?;
