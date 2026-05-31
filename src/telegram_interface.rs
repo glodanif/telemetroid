@@ -12,7 +12,6 @@ use teloxide::requests::{Requester, ResponseResult};
 use teloxide::types::{ChatId, Message, ParseMode, Update};
 use teloxide::utils::command::BotCommands;
 use teloxide::{Bot, dptree};
-use crate::smart_check::smart_check_result::{SmartCheckFailure, SmartCheckResult};
 
 pub async fn start_bot() {
     let bot = Bot::from_env();
@@ -101,7 +100,7 @@ fn start_smart_check(bot: Bot, chat_id: ChatId, is_smart_check_running: Arc<Atom
                                 format!("{}\n", error)
                             }
                         }
-                       
+
                     })
                     .collect::<Vec<_>>()
                     .join("\n")

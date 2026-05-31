@@ -1,4 +1,4 @@
-use crate::smart_check::power_on_time::PowerOnTimeResult;
+use crate::smart_check::power_on_time::SmartctlJson;
 use crate::smart_check::smart_check_error::SmartCheckError;
 use crate::smart_check::smart_check_result::{SmartCheckFailure, SmartCheckResult};
 use std::process::Command;
@@ -48,33 +48,28 @@ fn get_power_on_time(drive_name: &str) -> Result<u32, SmartCheckError> {
     let output = execute_command(SMARTCTL, &["--json", "-a", drive_name])?;
     let json_str =
         String::from_utf8(output).map_err(|e| SmartCheckError::FormatError(e.to_string()))?;
-    let power_on_time: PowerOnTimeResult =
+    let result: SmartctlJson =
         serde_json::from_str(&json_str).map_err(|e| SmartCheckError::FormatError(e.to_string()))?;
-    Ok(power_on_time.hours)
+    Ok(result.power_on_time.hours)
 }
 
 fn execute_command(command: &str, arguments: &[&str]) -> Result<Vec<u8>, SmartCheckError> {
+    let cmd_str = format!("{} {}", command, arguments.join(" "));
     let output = Command::new(command)
         .args(arguments)
         .output()
-        .map_err(|e| {
-            SmartCheckError::CommandExecutionError(
-                format!("{} {}", command, arguments.join(" ")).to_string(),
-                e.to_string(),
-            )
-        })?;
+        .map_err(|e| SmartCheckError::CommandExecutionError(cmd_str.clone(), e.to_string()))?;
 
-    if !output.status.success() {
-        let error = SmartCheckError::CommandExecutionError(
-            format!(
-                "Failed to execute command {} {}",
-                command,
-                arguments.join(" ")
-            )
-            .to_string(),
-            String::from_utf8_lossy(&output.stderr).to_string(),
-        );
-        return Err(error);
+    // smartctl encodes SMART health flags in exit bits 2-7; only bits 0-1 are real failures
+    let exit_code = output.status.code().unwrap_or(0);
+    if exit_code & 0b11 != 0 {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        let detail = if stderr.is_empty() {
+            String::from_utf8_lossy(&output.stdout).to_string()
+        } else {
+            stderr
+        };
+        return Err(SmartCheckError::CommandExecutionError(cmd_str, detail));
     }
 
     Ok(output.stdout)
