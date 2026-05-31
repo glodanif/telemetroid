@@ -8,4 +8,6 @@ pub enum SmartCheckError {
     SpawnError(String),
     #[error("Unable to scan for drives: {0}")]
     ScanError(String),
+    #[error("Unable to parse smartctl output: {0}")]
+    FormatError(String),
 }

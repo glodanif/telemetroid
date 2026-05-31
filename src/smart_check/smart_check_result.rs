@@ -3,10 +3,21 @@ use std::fmt::{Display, Formatter, Result};
 #[derive(Debug)]
 pub struct SmartCheckResult {
     pub drive_name: String,
+    pub power_on_time: u32,
+}
+
+pub struct SmartCheckFailure {
+    pub message: String,
 }
 
 impl Display for SmartCheckResult {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}", self.drive_name)
+        write!(f, "{} | {}", self.drive_name, self.power_on_time)
+    }
+}
+
+impl Display for SmartCheckFailure {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "{}", self.message)
     }
 }

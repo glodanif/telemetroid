@@ -12,6 +12,7 @@ use teloxide::requests::{Requester, ResponseResult};
 use teloxide::types::{ChatId, Message, ParseMode, Update};
 use teloxide::utils::command::BotCommands;
 use teloxide::{Bot, dptree};
+use crate::smart_check::smart_check_result::{SmartCheckFailure, SmartCheckResult};
 
 pub async fn start_bot() {
     let bot = Bot::from_env();
@@ -73,7 +74,7 @@ async fn answer(
             start_smart_check(bot.clone(), msg.chat.id, is_smart_check_running.clone());
             bot.send_message(
                 msg.chat.id,
-                "Smart check has started, it may take a couple of minutes...",
+                "Smart check has started, it may take a couple of minutes per drive",
             )
             .parse_mode(ParseMode::Html)
             .await?
@@ -91,7 +92,17 @@ fn start_smart_check(bot: Bot, chat_id: ChatId, is_smart_check_running: Arc<Atom
                 "<b>Smart check results:</b>\n\n{}",
                 results
                     .iter()
-                    .map(|r| format!("{}\n", r))
+                    .map(|r| {
+                        match r {
+                            Ok(result) => {
+                                format!("{}\n", result)
+                            }
+                            Err(error) => {
+                                format!("{}\n", error)
+                            }
+                        }
+                       
+                    })
                     .collect::<Vec<_>>()
                     .join("\n")
             ),

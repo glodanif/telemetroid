@@ -1,3 +1,4 @@
 pub mod check_task;
 pub mod smart_check_error;
 pub mod smart_check_result;
+pub mod power_on_time;
