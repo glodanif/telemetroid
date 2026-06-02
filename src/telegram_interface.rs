@@ -159,7 +159,7 @@ async fn send_prepare_message(
             .sum();
         message.push_str(
             format!(
-                "\nSmart check has started, results will be ready in {:.1} ",
+                "\nSmart check has started, results will be ready in {:.1} min",
                 total_duration
             )
             .as_str(),
