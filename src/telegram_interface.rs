@@ -2,7 +2,7 @@ mod command;
 
 use crate::info_collector;
 use crate::smart_check::check_task::{prepare_smart_check, smart_check};
-use crate::smart_check::drive_info::DriveInfo;
+use crate::smart_check::drive_info::{DriveInfo, format_number};
 use crate::smart_check::smart_check_result::SmartCheckFailure;
 use crate::system_update;
 use crate::telegram_interface::command::Command;
@@ -146,11 +146,10 @@ async fn send_prepare_message(
             Err(error) => error.to_string(),
         };
         message.push_str(format!("{}. {}", i + 1, text).as_str());
-        message.push('\n');
+        message.push_str("\n\n");
     }
     if !can_proceed {
-        message
-            .push_str("\nAll drives failed to prepare for smart check, no test will be performed");
+        message.push_str("All drives failed to prepare for smart check, no test will be performed");
     } else {
         let total_duration: f32 = drives_info
             .iter()
@@ -159,8 +158,8 @@ async fn send_prepare_message(
             .sum();
         message.push_str(
             format!(
-                "\nSmart check has started, results will be ready in {:.1} min",
-                total_duration
+                "Smart check has started, results will be ready in {:.1} min",
+                format_number(total_duration)
             )
             .as_str(),
         );
