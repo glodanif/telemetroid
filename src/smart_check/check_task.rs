@@ -11,23 +11,12 @@ pub struct PrepareSmartCheckResult {
     pub drives_info: Vec<Result<DriveInfo, SmartCheckFailure>>,
 }
 
-pub async fn prepare_smart_check() -> Result<PrepareSmartCheckResult, SmartCheckError> {
+pub async fn prepare_smart_check()
+-> Result<Vec<Result<DriveInfo, SmartCheckFailure>>, SmartCheckError> {
     let result = task::spawn_blocking(get_drives_info)
         .await
         .map_err(|e| SmartCheckError::SpawnError(e.to_string()))??;
-    let drives_number = result.len();
-
-    let mut failed_preparations = 0;
-    for r in &result {
-        if r.is_err() {
-            failed_preparations += 1;
-        }
-    }
-
-    Ok(PrepareSmartCheckResult {
-        can_proceed: failed_preparations < drives_number,
-        drives_info: result,
-    })
+    Ok(result)
 }
 
 fn get_drives_info() -> Result<Vec<Result<DriveInfo, SmartCheckFailure>>, SmartCheckError> {

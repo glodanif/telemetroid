@@ -1,8 +1,9 @@
 mod command;
 
 use crate::info_collector;
-use crate::smart_check::check_task::{prepare_smart_check, smart_check};
+use crate::smart_check::check_task::{PrepareSmartCheckResult, prepare_smart_check, smart_check};
 use crate::smart_check::drive_info::DriveInfo;
+use crate::smart_check::smart_check_error::SmartCheckError;
 use crate::smart_check::smart_check_result::SmartCheckFailure;
 use crate::system_update;
 use crate::telegram_interface::command::Command;
@@ -72,7 +73,33 @@ async fn answer(
                     .await?;
                 return Ok(());
             }
-            start_smart_check(bot.clone(), msg.chat.id, is_smart_check_running.clone());
+
+            let result = prepare_smart_check().await;
+            match result {
+                Ok(drives_info) => {
+                    let drives_number = drives_info.len();
+                    let mut failed_preparations = 0;
+                    for r in &drives_info {
+                        if r.is_err() {
+                            failed_preparations += 1;
+                        }
+                    }
+                    let can_proceed = failed_preparations < drives_number;
+                    send_prepare_message(&bot, msg.chat.id, &drives_info, can_proceed).await;
+                    if can_proceed {
+                        start_smart_check(bot.clone(), msg.chat.id, is_smart_check_running.clone());
+                    }
+                }
+                Err(err) => {
+                    send_message(
+                        &bot,
+                        msg.chat.id,
+                        format!("Failed to prepare smart check: {}", err).as_str(),
+                    )
+                    .await;
+                }
+            }
+
             bot.send_message(
                 msg.chat.id,
                 "Smart check has started, it may take a couple of minutes per drive",
@@ -87,45 +114,6 @@ async fn answer(
 fn start_smart_check(bot: Bot, chat_id: ChatId, is_smart_check_running: Arc<AtomicBool>) {
     tokio::spawn(async move {
         is_smart_check_running.store(true, Ordering::Relaxed);
-        let result = prepare_smart_check().await;
-        match result {
-            Ok(drives) => {
-                send_prepare_message(&bot, chat_id, &drives.drives_info).await;
-                if !drives.can_proceed {
-                    send_message(
-                        &bot,
-                        chat_id.clone(),
-                        "All drives failed to prepare for smart check, no test will be performed",
-                    )
-                    .await;
-                    return;
-                } else {
-                    let total_duration: f32 = drives
-                        .drives_info
-                        .iter()
-                        .filter_map(|d| d.as_ref().ok())
-                        .map(|d| d.ata_smart_data.self_test.polling_minutes.short as f32 * 1.5)
-                        .sum();
-                    send_message(
-                        &bot,
-                        chat_id.clone(),
-                        format!("Results will be ready in {:.1} minutes", total_duration).as_str(),
-                    )
-                    .await;
-                }
-            }
-            Err(e) => {
-                log::error!("Failed to prepare smart check: {}", e);
-                send_message(
-                    &bot,
-                    chat_id.clone(),
-                    format!("Failed to prepare smart check: {}", e).as_str(),
-                )
-                .await;
-                return;
-            }
-        }
-
         let check_results = smart_check().await;
         let text = match check_results {
             Ok(results) => format!(
@@ -156,6 +144,7 @@ async fn send_prepare_message(
     bot: &Bot,
     chat_id: ChatId,
     drives_info: &Vec<Result<DriveInfo, SmartCheckFailure>>,
+    can_proceed: bool,
 ) {
     let mut message = String::new();
     for (i, info) in drives_info.into_iter().enumerate() {
@@ -165,6 +154,10 @@ async fn send_prepare_message(
         };
         message.push_str(format!("{}. {}", i + 1, text).as_str());
         message.push('\n');
+    }
+    if !can_proceed {
+        message
+            .push_str("\nAll drives failed to prepare for smart check, no test will be performed");
     }
     send_message(bot, chat_id, message.as_str()).await;
 }
