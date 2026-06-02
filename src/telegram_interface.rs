@@ -1,9 +1,8 @@
 mod command;
 
 use crate::info_collector;
-use crate::smart_check::check_task::{PrepareSmartCheckResult, prepare_smart_check, smart_check};
+use crate::smart_check::check_task::{prepare_smart_check, smart_check};
 use crate::smart_check::drive_info::DriveInfo;
-use crate::smart_check::smart_check_error::SmartCheckError;
 use crate::smart_check::smart_check_result::SmartCheckFailure;
 use crate::system_update;
 use crate::telegram_interface::command::Command;
@@ -99,13 +98,7 @@ async fn answer(
                     .await;
                 }
             }
-
-            bot.send_message(
-                msg.chat.id,
-                "Smart check has started, it may take a couple of minutes per drive",
-            )
-            .parse_mode(ParseMode::Html)
-            .await?
+            return Ok(());
         }
     };
     Ok(())
@@ -158,6 +151,19 @@ async fn send_prepare_message(
     if !can_proceed {
         message
             .push_str("\nAll drives failed to prepare for smart check, no test will be performed");
+    } else {
+        let total_duration: f32 = drives_info
+            .iter()
+            .filter_map(|r| r.as_ref().ok())
+            .map(|info| info.ata_smart_data.self_test.polling_minutes.short as f32 * 1.5)
+            .sum();
+        message.push_str(
+            format!(
+                "\nSmart check has started, results will be ready in {:.1} ",
+                total_duration
+            )
+            .as_str(),
+        );
     }
     send_message(bot, chat_id, message.as_str()).await;
 }

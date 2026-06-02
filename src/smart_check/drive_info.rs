@@ -38,7 +38,7 @@ impl Display for DriveInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
             f,
-            "{} ({})\nTime to test: {:.1}",
+            "{} ({})\nTime to test: {:.1} min",
             self.model_name,
             self.device.name,
             self.ata_smart_data.self_test.polling_minutes.short as f32 * 1.5

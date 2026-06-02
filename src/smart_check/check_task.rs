@@ -6,11 +6,6 @@ use tokio::task;
 
 const SMARTCTL: &str = "smartctl";
 
-pub struct PrepareSmartCheckResult {
-    pub can_proceed: bool,
-    pub drives_info: Vec<Result<DriveInfo, SmartCheckFailure>>,
-}
-
 pub async fn prepare_smart_check()
 -> Result<Vec<Result<DriveInfo, SmartCheckFailure>>, SmartCheckError> {
     let result = task::spawn_blocking(get_drives_info)
