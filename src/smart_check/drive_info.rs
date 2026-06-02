@@ -6,7 +6,7 @@ pub struct DriveInfo {
     pub model_name: String,
     pub power_on_time: PowerOnTime,
     pub ata_smart_data: AtaSmartData,
-    pub user_capability: UserCapability,
+    pub user_capacity: UserCapacity,
     pub device: Device,
 }
 
@@ -36,7 +36,7 @@ pub struct Device {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct UserCapability {
+pub struct UserCapacity {
     pub bytes: u64,
 }
 
@@ -46,7 +46,7 @@ impl Display for DriveInfo {
             f,
             "<b>{}</b>\n{} ({})\nTime to test: {} min",
             self.model_name,
-            format_bytes(self.user_capability.bytes),
+            format_bytes(self.user_capacity.bytes),
             self.device.name,
             format_number(self.ata_smart_data.self_test.polling_minutes.short as f32 * 1.5)
         )
