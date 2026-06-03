@@ -30,16 +30,15 @@ fn get_drives_info() -> Result<Vec<Result<DriveInfo, SmartCheckFailure>>, SmartC
     Ok(results)
 }
 
-pub async fn smart_check()
+pub async fn smart_check(drives: Vec<DriveInfo>)
 -> Result<Vec<Result<SmartCheckResult, SmartCheckFailure>>, SmartCheckError> {
-    task::spawn_blocking(scan_and_check_drives)
+    task::spawn_blocking(|| scan_and_check_drives(drives))
         .await
         .map_err(|e| SmartCheckError::SpawnError(e.to_string()))?
 }
 
-fn scan_and_check_drives()
+fn scan_and_check_drives(drives: Vec<DriveInfo>)
 -> Result<Vec<Result<SmartCheckResult, SmartCheckFailure>>, SmartCheckError> {
-    let drives = scan_drives()?;
     let mut results = Vec::new();
     // for drive in drives.iter() {
     //     let result = get_power_on_time(drive);

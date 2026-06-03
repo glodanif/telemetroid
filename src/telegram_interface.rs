@@ -2,10 +2,11 @@ mod command;
 
 use crate::info_collector;
 use crate::smart_check::check_task::{prepare_smart_check, smart_check};
-use crate::smart_check::drive_info::{DriveInfo, format_number};
+use crate::smart_check::drive_info::DriveInfo;
 use crate::smart_check::smart_check_result::SmartCheckFailure;
 use crate::system_update;
 use crate::telegram_interface::command::Command;
+use crate::text_utils::format_number;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use teloxide::dispatching::{Dispatcher, HandlerExt, UpdateFilterExt};
@@ -14,6 +15,7 @@ use teloxide::requests::{Requester, ResponseResult};
 use teloxide::types::{ChatId, Message, ParseMode, Update};
 use teloxide::utils::command::BotCommands;
 use teloxide::{Bot, dptree};
+use crate::info_collector::collect;
 
 pub async fn start_bot() {
     let bot = Bot::from_env();
@@ -86,7 +88,11 @@ async fn answer(
                     let can_proceed = failed_preparations < drives_number;
                     send_prepare_message(&bot, msg.chat.id, &drives_info, can_proceed).await;
                     if can_proceed {
-                        start_smart_check(bot.clone(), msg.chat.id, is_smart_check_running.clone());
+                        let drives: Vec<DriveInfo> = drives_info
+                            .into_iter()
+                            .filter_map(Result::ok)
+                            .collect();
+                        start_smart_check(bot.clone(), msg.chat.id, is_smart_check_running.clone(), drives);
                     }
                 }
                 Err(err) => {
@@ -104,10 +110,10 @@ async fn answer(
     Ok(())
 }
 
-fn start_smart_check(bot: Bot, chat_id: ChatId, is_smart_check_running: Arc<AtomicBool>) {
+fn start_smart_check(bot: Bot, chat_id: ChatId, is_smart_check_running: Arc<AtomicBool>, drives: Vec<DriveInfo>) {
     tokio::spawn(async move {
         is_smart_check_running.store(true, Ordering::Relaxed);
-        let check_results = smart_check().await;
+        let check_results = smart_check(drives).await;
         let text = match check_results {
             Ok(results) => format!(
                 "<b>Smart check results:</b>\n\n{}",

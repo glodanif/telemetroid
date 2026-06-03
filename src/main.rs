@@ -2,6 +2,7 @@ pub mod info_collector;
 pub mod smart_check;
 mod system_update;
 mod telegram_interface;
+pub mod text_utils;
 
 use crate::telegram_interface::start_bot;
 
