@@ -56,6 +56,7 @@ pub struct Device {
     pub name: String,
     #[serde(rename = "type")]
     pub drive_type: String,
+    pub protocol: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -67,10 +68,10 @@ impl Display for DriveInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
             f,
-            "<b>{} {}</b>\n{} ({})\nTime to test: {} min",
-            self.device.drive_type,
+            "<b>{}</b>\n{} {} ({})\nTime to test: {} min",
             self.model_name,
             format_bytes(self.user_capacity.bytes),
+            self.device.protocol,
             self.device.name,
             format_number(self.get_time_to_test())
         )
