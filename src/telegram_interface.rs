@@ -15,7 +15,6 @@ use teloxide::requests::{Requester, ResponseResult};
 use teloxide::types::{ChatId, Message, ParseMode, Update};
 use teloxide::utils::command::BotCommands;
 use teloxide::{Bot, dptree};
-use crate::info_collector::collect;
 
 pub async fn start_bot() {
     let bot = Bot::from_env();
@@ -88,11 +87,14 @@ async fn answer(
                     let can_proceed = failed_preparations < drives_number;
                     send_prepare_message(&bot, msg.chat.id, &drives_info, can_proceed).await;
                     if can_proceed {
-                        let drives: Vec<DriveInfo> = drives_info
-                            .into_iter()
-                            .filter_map(Result::ok)
-                            .collect();
-                        start_smart_check(bot.clone(), msg.chat.id, is_smart_check_running.clone(), drives);
+                        let drives: Vec<DriveInfo> =
+                            drives_info.into_iter().filter_map(Result::ok).collect();
+                        start_smart_check(
+                            bot.clone(),
+                            msg.chat.id,
+                            is_smart_check_running.clone(),
+                            drives,
+                        );
                     }
                 }
                 Err(err) => {
@@ -110,7 +112,12 @@ async fn answer(
     Ok(())
 }
 
-fn start_smart_check(bot: Bot, chat_id: ChatId, is_smart_check_running: Arc<AtomicBool>, drives: Vec<DriveInfo>) {
+fn start_smart_check(
+    bot: Bot,
+    chat_id: ChatId,
+    is_smart_check_running: Arc<AtomicBool>,
+    drives: Vec<DriveInfo>,
+) {
     tokio::spawn(async move {
         is_smart_check_running.store(true, Ordering::Relaxed);
         let check_results = smart_check(drives).await;
@@ -160,7 +167,7 @@ async fn send_prepare_message(
         let total_duration: f32 = drives_info
             .iter()
             .filter_map(|r| r.as_ref().ok())
-            .map(|info| info.ata_smart_data.self_test.polling_minutes.short as f32 * 1.5)
+            .map(|info| info.get_time_to_test())
             .sum();
         message.push_str(
             format!(

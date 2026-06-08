@@ -6,9 +6,29 @@ use std::fmt::{Display, Formatter, Result};
 pub struct DriveInfo {
     pub model_name: String,
     pub power_on_time: PowerOnTime,
-    pub ata_smart_data: AtaSmartData,
+    pub ata_smart_data: Option<AtaSmartData>,
     pub user_capacity: UserCapacity,
     pub device: Device,
+}
+
+impl DriveInfo {
+    pub fn get_time_to_test(&self) -> f32 {
+        let time_to_test = match {
+            match &self.ata_smart_data {
+                None => {
+                    if self.device.drive_type == "nvme" {
+                        1
+                    } else {
+                        5
+                    }
+                }
+                Some(data) => data.self_test.polling_minutes.short,
+            }
+        } {
+            _ => 5,
+        };
+        time_to_test as f32 * 1.5
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -34,6 +54,8 @@ pub struct PollingMinutes {
 #[derive(Debug, Deserialize)]
 pub struct Device {
     pub name: String,
+    #[serde(rename = "type")]
+    pub drive_type: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -45,11 +67,12 @@ impl Display for DriveInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
             f,
-            "<b>{}</b>\n{} ({})\nTime to test: {} min",
+            "<b>{} {}</b>\n{} ({})\nTime to test: {} min",
+            self.device.drive_type,
             self.model_name,
             format_bytes(self.user_capacity.bytes),
             self.device.name,
-            format_number(self.ata_smart_data.self_test.polling_minutes.short as f32 * 1.5)
+            format_number(self.get_time_to_test())
         )
     }
 }
