@@ -6,12 +6,12 @@ pub fn format_bytes(bytes: u64) -> String {
     const PB: u64 = TB * 1024;
 
     match bytes {
-        b if b >= PB => format!("{:.2} PB", b as f64 / PB as f64),
-        b if b >= TB => format!("{:.2} TB", b as f64 / TB as f64),
-        b if b >= GB => format!("{:.2} GB", b as f64 / GB as f64),
-        b if b >= MB => format!("{:.2} MB", b as f64 / MB as f64),
-        b if b >= KB => format!("{:.2} KB", b as f64 / KB as f64),
-        b => format!("{} B", b),
+        b if b >= PB => format!("{:.2}P", b as f64 / PB as f64),
+        b if b >= TB => format!("{:.2}T", b as f64 / TB as f64),
+        b if b >= GB => format!("{:.2}G", b as f64 / GB as f64),
+        b if b >= MB => format!("{:.2}M", b as f64 / MB as f64),
+        b if b >= KB => format!("{:.2}K", b as f64 / KB as f64),
+        b => format!("{}B", b),
     }
 }
 
