@@ -13,21 +13,14 @@ pub struct DriveInfo {
 
 impl DriveInfo {
     pub fn get_time_to_test(&self) -> f32 {
-        let time_to_test = match {
+        if self.device.protocol == "nvme" {
+            1.5
+        } else {
             match &self.ata_smart_data {
-                None => {
-                    if self.device.drive_type == "nvme" {
-                        1
-                    } else {
-                        5
-                    }
-                }
-                Some(data) => data.self_test.polling_minutes.short,
+                Some(data) => data.self_test.polling_minutes.short as f32 * 1.5,
+                None => 5.0,
             }
-        } {
-            _ => 5,
-        };
-        time_to_test as f32 * 1.5
+        }
     }
 }
 
