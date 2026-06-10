@@ -8,11 +8,12 @@ pub struct DriveInfo {
     pub power_on_time: PowerOnTime,
     pub ata_smart_data: Option<AtaSmartData>,
     pub user_capacity: UserCapacity,
+    pub smart_status: SmartStatus,
     pub device: Device,
 }
 
 impl DriveInfo {
-    pub fn get_time_to_test(&self) -> f32 {
+    pub fn get_time_to_test_mins(&self) -> f32 {
         if self.device.drive_type == "nvme" {
             1.5
         } else {
@@ -21,6 +22,10 @@ impl DriveInfo {
                 None => 5.0,
             }
         }
+    }
+    
+    pub fn get_time_to_test_secs(&self) -> u64 {
+        (self.get_time_to_test_mins() * 60.0) as u64
     }
 }
 
@@ -45,6 +50,11 @@ pub struct PollingMinutes {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct SmartStatus {
+    pub passed: bool,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct Device {
     pub name: String,
     #[serde(rename = "type")]
@@ -66,7 +76,7 @@ impl Display for DriveInfo {
             format_bytes(self.user_capacity.bytes),
             self.device.protocol,
             self.device.name,
-            format_number(self.get_time_to_test())
+            format_number(self.get_time_to_test_mins())
         )
     }
 }

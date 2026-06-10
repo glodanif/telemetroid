@@ -4,6 +4,7 @@ use std::fmt::{Display, Formatter, Result};
 pub struct SmartCheckResult {
     pub drive_name: String,
     pub power_on_time: u32,
+    pub passed: bool,
 }
 
 pub struct SmartCheckFailure {

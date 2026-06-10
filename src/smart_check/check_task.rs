@@ -2,6 +2,8 @@ use crate::smart_check::drive_info::DriveInfo;
 use crate::smart_check::smart_check_error::SmartCheckError;
 use crate::smart_check::smart_check_result::{SmartCheckFailure, SmartCheckResult};
 use std::process::Command;
+use std::thread::sleep;
+use std::time::Duration;
 use tokio::task;
 
 const SMARTCTL: &str = "smartctl";
@@ -30,29 +32,55 @@ fn get_drives_info() -> Result<Vec<Result<DriveInfo, SmartCheckFailure>>, SmartC
     Ok(results)
 }
 
-pub async fn smart_check(drives: Vec<DriveInfo>)
--> Result<Vec<Result<SmartCheckResult, SmartCheckFailure>>, SmartCheckError> {
+pub async fn smart_check(
+    drives: Vec<DriveInfo>,
+) -> Result<Vec<Result<SmartCheckResult, SmartCheckFailure>>, SmartCheckError> {
     task::spawn_blocking(|| scan_and_check_drives(drives))
         .await
         .map_err(|e| SmartCheckError::SpawnError(e.to_string()))?
 }
 
-fn scan_and_check_drives(drives: Vec<DriveInfo>)
--> Result<Vec<Result<SmartCheckResult, SmartCheckFailure>>, SmartCheckError> {
+fn scan_and_check_drives(
+    drives: Vec<DriveInfo>,
+) -> Result<Vec<Result<SmartCheckResult, SmartCheckFailure>>, SmartCheckError> {
     let mut results = Vec::new();
-    // for drive in drives.iter() {
-    //     let result = get_power_on_time(drive);
-    //     match result {
-    //         Ok(hours) => results.push(Ok(SmartCheckResult {
-    //             drive_name: drive.clone(),
-    //             power_on_time: hours,
-    //         })),
-    //         Err(e) => results.push(Err(SmartCheckFailure {
-    //             message: e.to_string(),
-    //         })),
-    //     }
-    // }
+    for drive in drives.iter() {
+        let result = launch_short_test(&drive.device.name);
+        match result {
+            Ok(_) => {
+                let _ = sleep(Duration::from_secs(drive.get_time_to_test_secs()));
+                let test_result = get_drive_info(&drive.device.name);
+                match test_result {
+                    Ok(r) => {
+                        if r.power_on_time.hours == drive.power_on_time.hours {
+                            results.push(Ok(SmartCheckResult {
+                                drive_name: drive.device.name.clone(),
+                                power_on_time: r.power_on_time.hours,
+                                passed: r.smart_status.passed,
+                            }));
+                        }
+                    }
+                    Err(e) => {
+                        results.push(Err(SmartCheckFailure {
+                            drive_name: drive.device.name.clone(),
+                            message: e.to_string(),
+                        }));
+                    }
+                }
+            }
+            Err(e) => results.push(Err(e)),
+        }
+    }
     Ok(results)
+}
+
+fn launch_short_test(drive_name: &str) -> Result<(), SmartCheckFailure> {
+    let _ =
+        execute_command(SMARTCTL, &["-t", "short", drive_name]).map_err(|e| SmartCheckFailure {
+            drive_name: drive_name.to_string(),
+            message: e.to_string(),
+        });
+    Ok(())
 }
 
 fn scan_drives() -> Result<Vec<String>, SmartCheckError> {

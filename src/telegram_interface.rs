@@ -167,7 +167,7 @@ async fn send_prepare_message(
         let total_duration: f32 = drives_info
             .iter()
             .filter_map(|r| r.as_ref().ok())
-            .map(|info| info.get_time_to_test())
+            .map(|info| info.get_time_to_test_mins())
             .sum();
         message.push_str(
             format!(
