@@ -1,17 +1,23 @@
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
 pub struct AtaSmartSelfTestLog {
-    pub short: u32,
+    pub standard: Standard,
 }
 
+#[derive(Debug, Deserialize)]
 pub struct Standard {
     pub revision: u32,
     pub table: Vec<LogEntry>,
 }
 
+#[derive(Debug, Deserialize)]
 pub struct LogEntry {
-
+    pub status: Status,
     pub lifetime_hours: u64,
 }
 
+#[derive(Debug, Deserialize)]
 pub struct Status {
     pub value: u32,
     pub string: String,
