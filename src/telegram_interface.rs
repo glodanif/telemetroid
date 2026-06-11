@@ -1,7 +1,7 @@
 mod command;
 
 use crate::info_collector;
-use crate::smart_check::check_task::{prepare_smart_check, smart_check};
+use crate::smart_check::smart_check_task::{prepare_smart_check, smart_check};
 use crate::smart_check::drive_info::DriveInfo;
 use crate::smart_check::smart_check_result::SmartCheckFailure;
 use crate::system_update;
