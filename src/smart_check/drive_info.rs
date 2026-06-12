@@ -1,4 +1,4 @@
-use crate::text_utils::{format_bytes, format_number};
+use crate::text_utils::format_bytes;
 use serde::Deserialize;
 use std::fmt::{Display, Formatter, Result};
 
@@ -6,27 +6,8 @@ use std::fmt::{Display, Formatter, Result};
 pub struct DriveInfo {
     pub model_name: String,
     pub power_on_time: PowerOnTime,
-    pub ata_smart_data: Option<AtaSmartData>,
     pub user_capacity: UserCapacity,
-    pub smart_status: SmartStatus,
     pub device: Device,
-}
-
-impl DriveInfo {
-    pub fn get_time_to_test_mins(&self) -> f32 {
-        if self.device.drive_type == "nvme" {
-            1.5
-        } else {
-            match &self.ata_smart_data {
-                Some(data) => data.self_test.polling_minutes.short as f32 * 1.5,
-                None => 5.0,
-            }
-        }
-    }
-    
-    pub fn get_time_to_test_secs(&self) -> u64 {
-        (self.get_time_to_test_mins() * 60.0) as u64
-    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -50,11 +31,6 @@ pub struct PollingMinutes {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct SmartStatus {
-    pub passed: bool,
-}
-
-#[derive(Debug, Deserialize)]
 pub struct Device {
     pub name: String,
     #[serde(rename = "type")]
@@ -71,12 +47,11 @@ impl Display for DriveInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
             f,
-            "<b>{}</b>\n{} {} ({})\nTime to test: {} min",
+            "<b>{}</b>\n{} {} ({})",
             self.model_name,
             format_bytes(self.user_capacity.bytes),
             self.device.protocol,
-            self.device.name,
-            format_number(self.get_time_to_test_mins())
+            self.device.name
         )
     }
 }

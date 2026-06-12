@@ -1,12 +1,11 @@
 mod command;
 
 use crate::info_collector;
-use crate::smart_check::smart_check_task::{prepare_smart_check, smart_check};
 use crate::smart_check::drive_info::DriveInfo;
 use crate::smart_check::smart_check_result::SmartCheckFailure;
+use crate::smart_check::smart_check_task::{prepare_smart_check, smart_check};
 use crate::system_update;
 use crate::telegram_interface::command::Command;
-use crate::text_utils::format_number;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use teloxide::dispatching::{Dispatcher, HandlerExt, UpdateFilterExt};
@@ -164,18 +163,7 @@ async fn send_prepare_message(
     if !can_proceed {
         message.push_str("All drives failed to prepare for smart check, no test will be performed");
     } else {
-        let total_duration: f32 = drives_info
-            .iter()
-            .filter_map(|r| r.as_ref().ok())
-            .map(|info| info.get_time_to_test_mins())
-            .sum();
-        message.push_str(
-            format!(
-                "Smart check has started, results will be ready in {:.1} min",
-                format_number(total_duration)
-            )
-            .as_str(),
-        );
+        message.push_str("Smart check has started");
     }
     send_message(bot, chat_id, message.as_str()).await;
 }

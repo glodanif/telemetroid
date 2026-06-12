@@ -28,8 +28,12 @@ fn check_progress(drive: &DriveInfo) -> Result<SmartCheckResult, SmartCheckFailu
         }
         let progress_check_result = get_drive_info(drive.device.name.as_str());
         match progress_check_result {
-            Ok(info) => {}
-            Err(e) => {}
+            Ok(info) => {
+
+            }
+            Err(e) => {
+                eprintln!("Failed to get drive info: {}", e);
+            }
         }
     }
 }
