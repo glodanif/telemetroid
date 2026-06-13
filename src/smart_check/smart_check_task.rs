@@ -16,11 +16,11 @@ fn get_drives_info() -> Result<Vec<Result<DriveInfo, SmartCheckFailure>>, SmartC
     let drives = scan_drives()?;
     let mut results = Vec::new();
     for drive in drives.iter() {
-        let result = get_drive_info(drive);
+        let result = get_drive_info(drive.name.as_str());
         match result {
             Ok(info) => results.push(Ok(info)),
             Err(e) => results.push(Err(SmartCheckFailure {
-                drive_name: drive.clone(),
+                drive_name: drive.name.clone(),
                 message: e.to_string(),
             })),
         }

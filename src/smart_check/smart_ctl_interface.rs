@@ -1,3 +1,4 @@
+use crate::smart_check::basic_device_info::{BasicDeviceInfo, DeviceInterface};
 use crate::smart_check::drive_info::DriveInfo;
 use crate::smart_check::smart_check_error::SmartCheckError;
 use crate::smart_check::smart_check_result::SmartCheckFailure;
@@ -14,13 +15,20 @@ pub fn get_drive_info(drive_name: &str) -> Result<DriveInfo, SmartCheckError> {
     Ok(result)
 }
 
-pub fn scan_drives() -> Result<Vec<String>, SmartCheckError> {
+pub fn scan_drives() -> Result<Vec<BasicDeviceInfo>, SmartCheckError> {
     let output = execute_command(SMARTCTL, &["--scan"])?;
     output
         .split(|&c| c == b'\n')
         .filter_map(|line| {
             let line = String::from_utf8_lossy(line);
-            line.split_whitespace().next().map(String::from)
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() < 3 {
+                return None;
+            }
+            Some(BasicDeviceInfo {
+                name: parts[0].to_string(),
+                interface: DeviceInterface::from(parts[2]),
+            })
         })
         .map(Ok)
         .collect()
