@@ -6,3 +6,5 @@ pub mod nvme_self_test;
 pub mod smart_ctl_interface;
 pub mod ata_self_test;
 pub mod basic_device_info;
+pub mod common;
+pub mod drives;

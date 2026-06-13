@@ -1,6 +1,6 @@
 use crate::smart_check::drive_info::DriveInfo;
 use crate::smart_check::smart_check_result::{SmartCheckFailure, SmartCheckResult};
-use crate::smart_check::smart_ctl_interface::{get_drive_info, launch_short_test};
+use crate::smart_check::smart_ctl_interface::{get_ata_drive_info, launch_short_test};
 use std::time::Duration;
 
 const TIMEOUT: Duration = Duration::from_secs(300);
@@ -14,7 +14,7 @@ pub fn start_shot_ata_self_test(drive: &DriveInfo) -> Result<SmartCheckResult, S
 }
 
 fn wait_for_result(drive: &DriveInfo) -> Result<SmartCheckResult, SmartCheckFailure> {
-    let check_result = get_drive_info(drive.device.name.as_str());
+    let check_result = get_ata_drive_info(drive.device.name.as_str());
     match check_result {
         Ok(info) => {}
         Err(e) => {

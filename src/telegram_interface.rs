@@ -1,19 +1,20 @@
 mod command;
 
 use crate::info_collector;
+use crate::smart_check::ata_self_test::ata_drive_info::AtaDriveInfo;
 use crate::smart_check::drive_info::DriveInfo;
-use crate::smart_check::smart_check_result::SmartCheckFailure;
+use crate::smart_check::drives::Drives;
 use crate::smart_check::smart_check_task::{prepare_smart_check, smart_check};
 use crate::system_update;
 use crate::telegram_interface::command::Command;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use teloxide::dispatching::{Dispatcher, HandlerExt, UpdateFilterExt};
 use teloxide::payloads::SendMessageSetters;
 use teloxide::requests::{Requester, ResponseResult};
 use teloxide::types::{ChatId, Message, ParseMode, Update};
 use teloxide::utils::command::BotCommands;
-use teloxide::{Bot, dptree};
+use teloxide::{dptree, Bot};
 
 pub async fn start_bot() {
     let bot = Bot::from_env();
@@ -76,9 +77,9 @@ async fn answer(
             let result = prepare_smart_check().await;
             match result {
                 Ok(drives_info) => {
-                    let drives_number = drives_info.len();
+                    let drives_number = drives_info.ata.len();
                     let mut failed_preparations = 0;
-                    for r in &drives_info {
+                    for r in &drives_info.ata {
                         if r.is_err() {
                             failed_preparations += 1;
                         }
@@ -86,8 +87,8 @@ async fn answer(
                     let can_proceed = failed_preparations < drives_number;
                     send_prepare_message(&bot, msg.chat.id, &drives_info, can_proceed).await;
                     if can_proceed {
-                        let drives: Vec<DriveInfo> =
-                            drives_info.into_iter().filter_map(Result::ok).collect();
+                        let drives: Vec<AtaDriveInfo> =
+                            drives_info.ata.into_iter().filter_map(Result::ok).collect();
                         start_smart_check(
                             bot.clone(),
                             msg.chat.id,
@@ -145,14 +146,9 @@ fn start_smart_check(
     });
 }
 
-async fn send_prepare_message(
-    bot: &Bot,
-    chat_id: ChatId,
-    drives_info: &Vec<Result<DriveInfo, SmartCheckFailure>>,
-    can_proceed: bool,
-) {
+async fn send_prepare_message(bot: &Bot, chat_id: ChatId, drives: &Drives, can_proceed: bool) {
     let mut message = String::new();
-    for (i, info) in drives_info.into_iter().enumerate() {
+    for (i, info) in drives.ata.into_iter().enumerate() {
         let text = match info {
             Ok(info) => info.to_string(),
             Err(error) => error.to_string(),

@@ -1,13 +1,14 @@
+use crate::smart_check::common::device_info_parts::{Device, PowerOnTime, UserCapacity};
 use crate::text_utils::format_bytes;
 use serde::Deserialize;
 use std::fmt::{Display, Formatter, Result};
-use crate::smart_check::common::device_info_parts::{Device, PowerOnTime, UserCapacity};
 
 #[derive(Debug, Deserialize)]
-pub struct DriveInfo {
+pub struct AtaDriveInfo {
     pub model_name: String,
     pub power_on_time: PowerOnTime,
     pub user_capacity: UserCapacity,
+    pub ata_smart_data: AtaSmartData,
     pub device: Device,
 }
 
@@ -26,7 +27,7 @@ pub struct PollingMinutes {
     pub short: u32,
 }
 
-impl Display for DriveInfo {
+impl Display for AtaDriveInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
             f,

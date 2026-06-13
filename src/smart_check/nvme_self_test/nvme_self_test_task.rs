@@ -1,6 +1,6 @@
 use crate::smart_check::drive_info::DriveInfo;
 use crate::smart_check::smart_check_result::{SmartCheckFailure, SmartCheckResult};
-use crate::smart_check::smart_ctl_interface::{get_drive_info, launch_short_test};
+use crate::smart_check::smart_ctl_interface::{get_nvme_drive_info, launch_short_test};
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -26,7 +26,7 @@ fn check_progress(drive: &DriveInfo) -> Result<SmartCheckResult, SmartCheckFailu
                 message: "Timeout".to_string(),
             });
         }
-        let progress_check_result = get_drive_info(drive.device.name.as_str());
+        let progress_check_result = get_nvme_drive_info(drive.device.name.as_str());
         match progress_check_result {
             Ok(info) => {
 

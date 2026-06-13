@@ -4,7 +4,7 @@ pub struct BasicDeviceInfo {
 }
 
 pub enum DeviceInterface {
-    Sata,
+    Ata,
     Nvme,
     Unsupported,
 }
@@ -12,7 +12,7 @@ pub enum DeviceInterface {
 impl DeviceInterface {
     pub fn from(string: &str) -> Self {
         match string {
-            "sata" => DeviceInterface::Sata,
+            "scsi" => DeviceInterface::Ata,
             "nvme" => DeviceInterface::Nvme,
             _ => DeviceInterface::Unsupported,
         }
