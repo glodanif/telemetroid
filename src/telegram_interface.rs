@@ -7,14 +7,14 @@ use crate::smart_check::drives::Drives;
 use crate::smart_check::smart_check_task::{prepare_smart_check, smart_check};
 use crate::system_update;
 use crate::telegram_interface::command::Command;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use teloxide::dispatching::{Dispatcher, HandlerExt, UpdateFilterExt};
 use teloxide::payloads::SendMessageSetters;
 use teloxide::requests::{Requester, ResponseResult};
 use teloxide::types::{ChatId, Message, ParseMode, Update};
 use teloxide::utils::command::BotCommands;
-use teloxide::{dptree, Bot};
+use teloxide::{Bot, dptree};
 
 pub async fn start_bot() {
     let bot = Bot::from_env();
@@ -87,13 +87,11 @@ async fn answer(
                     let can_proceed = failed_preparations < drives_number;
                     send_prepare_message(&bot, msg.chat.id, &drives_info, can_proceed).await;
                     if can_proceed {
-                        let drives: Vec<AtaDriveInfo> =
-                            drives_info.ata.into_iter().filter_map(Result::ok).collect();
                         start_smart_check(
                             bot.clone(),
                             msg.chat.id,
                             is_smart_check_running.clone(),
-                            drives,
+                            drives_info,
                         );
                     }
                 }
@@ -116,7 +114,7 @@ fn start_smart_check(
     bot: Bot,
     chat_id: ChatId,
     is_smart_check_running: Arc<AtomicBool>,
-    drives: Vec<DriveInfo>,
+    drives: Drives,
 ) {
     tokio::spawn(async move {
         is_smart_check_running.store(true, Ordering::Relaxed);
@@ -148,14 +146,8 @@ fn start_smart_check(
 
 async fn send_prepare_message(bot: &Bot, chat_id: ChatId, drives: &Drives, can_proceed: bool) {
     let mut message = String::new();
-    for (i, info) in drives.ata.into_iter().enumerate() {
-        let text = match info {
-            Ok(info) => info.to_string(),
-            Err(error) => error.to_string(),
-        };
-        message.push_str(format!("{}. {}", i + 1, text).as_str());
-        message.push_str("\n\n");
-    }
+    message.push_str(drives.to_string().as_str());
+    message.push_str("\n\n");
     if !can_proceed {
         message.push_str("All drives failed to prepare for smart check, no test will be performed");
     } else {

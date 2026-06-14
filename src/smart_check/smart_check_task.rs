@@ -51,7 +51,7 @@ fn get_drives_info() -> Result<Drives, SmartCheckError> {
 }
 
 pub async fn smart_check(
-    drives: Vec<DriveInfo>,
+    drives: Drives,
 ) -> Result<Vec<Result<SmartCheckResult, SmartCheckFailure>>, SmartCheckError> {
     task::spawn_blocking(|| scan_and_check_drives(drives))
         .await
@@ -59,9 +59,8 @@ pub async fn smart_check(
 }
 
 fn scan_and_check_drives(
-    drives: Vec<DriveInfo>,
+    drives: Drives,
 ) -> Result<Vec<Result<SmartCheckResult, SmartCheckFailure>>, SmartCheckError> {
     let mut results = Vec::new();
-    for drive in drives.iter() {}
     Ok(results)
 }
