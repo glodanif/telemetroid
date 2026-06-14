@@ -7,6 +7,7 @@ use crate::smart_check::smart_ctl_interface::{
     get_ata_drive_info, get_nvme_drive_info, scan_drives,
 };
 use tokio::task;
+use crate::smart_check::nvme_self_test::nvme_self_test_task::start_shot_nvme_self_test;
 
 pub async fn prepare_smart_check() -> Result<Drives, SmartCheckError> {
     let result = task::spawn_blocking(get_drives_info)
@@ -62,5 +63,11 @@ fn scan_and_check_drives(
     drives: Drives,
 ) -> Result<Vec<Result<SmartCheckResult, SmartCheckFailure>>, SmartCheckError> {
     let mut results = Vec::new();
+    for drive in drives.nvme.iter() {
+        if let Ok(drive) = drive {
+            let result = start_shot_nvme_self_test(drive);
+            results.push(result);
+        }
+    }
     Ok(results)
 }

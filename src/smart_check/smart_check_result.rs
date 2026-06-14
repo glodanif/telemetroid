@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter, Result};
 #[derive(Debug)]
 pub struct SmartCheckResult {
     pub drive_name: String,
-    pub power_on_time: u32,
+    pub power_on_time: u64,
     pub passed: bool,
 }
 
@@ -14,12 +14,18 @@ pub struct SmartCheckFailure {
 
 impl Display for SmartCheckResult {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}\n{}", self.drive_name, self.power_on_time)
+        let pass = if self.passed { "passed" } else { "failed" };
+        write!(f, "{} - {}", self.drive_name, pass)
     }
 }
 
 impl Display for SmartCheckFailure {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}\n{}", self.drive_name, format!("Preparation failed: {}", self.message))
+        write!(
+            f,
+            "{}\n{}",
+            self.drive_name,
+            format!("Preparation failed: {}", self.message)
+        )
     }
 }

@@ -2,7 +2,7 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct PowerOnTime {
-    pub hours: u32,
+    pub hours: u64,
 }
 
 #[derive(Debug, Deserialize)]
