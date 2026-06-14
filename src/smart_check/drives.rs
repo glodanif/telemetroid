@@ -27,7 +27,9 @@ impl Display for Drives {
         if self.is_empty() {
             writeln!(f, "No drives found")?;
         }
+        let mut has_ata = false;
         if !self.ata.is_empty() {
+            has_ata = true;
             writeln!(f, "ATA Drives:")?;
             for (i, drive) in self.ata.iter().enumerate() {
                 match drive {
@@ -37,10 +39,13 @@ impl Display for Drives {
             }
         }
         if !self.nvme.is_empty() {
+            if has_ata {
+                writeln!(f, "\n")?;
+            }
             writeln!(f, "NVMe Drives:")?;
             for (i, drive) in self.nvme.iter().enumerate() {
                 match drive {
-                    Ok(info) => writeln!(f, "{}. NVMe Drive Info: {:?}", i + 1, info)?,
+                    Ok(info) => writeln!(f, "{}. {}", i + 1, info)?,
                     Err(err) => writeln!(f, "{}. Failed: {}", i + 1, err)?,
                 }
             }
