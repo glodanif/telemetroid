@@ -77,14 +77,7 @@ async fn answer(
             let result = prepare_smart_check().await;
             match result {
                 Ok(drives_info) => {
-                    let drives_number = drives_info.ata.len();
-                    let mut failed_preparations = 0;
-                    for r in &drives_info.ata {
-                        if r.is_err() {
-                            failed_preparations += 1;
-                        }
-                    }
-                    let can_proceed = failed_preparations < drives_number;
+                    let can_proceed = drives_info.is_any_not_failed();
                     send_prepare_message(&bot, msg.chat.id, &drives_info, can_proceed).await;
                     if can_proceed {
                         start_smart_check(
