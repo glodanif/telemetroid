@@ -16,6 +16,10 @@ impl Drives {
     pub fn is_any_not_failed(&self) -> bool {
         self.ata.iter().any(|r| r.is_ok()) || self.nvme.iter().any(|r| r.is_ok())
     }
+
+    pub fn len(&self) -> usize {
+        self.ata.len() + self.nvme.len()
+    }
 }
 
 impl Display for Drives {
@@ -23,25 +27,25 @@ impl Display for Drives {
         if self.is_empty() {
             writeln!(f, "No drives found")?;
         }
+        let mut index = 0;
         if !self.ata.is_empty() {
-            writeln!(f, "ATA Drives:")?;
-            for (i, drive) in self.ata.iter().enumerate() {
+            for drive in self.ata.iter() {
                 match drive {
-                    Ok(info) => writeln!(f, "{}. {}", i + 1, info)?,
-                    Err(err) => writeln!(f, "{}. Failed: {}", i + 1, err)?,
+                    Ok(info) => writeln!(f, "{}. {}", index + 1, info)?,
+                    Err(err) => writeln!(f, "{}. Failed: {}", index + 1, err)?,
                 }
+                writeln!(f, "")?;
+                index += 1;
             }
         }
         if !self.nvme.is_empty() {
-            if !self.ata.is_empty() {
-                writeln!(f, "\n")?;
-            }
-            writeln!(f, "NVMe Drives:")?;
-            for (i, drive) in self.nvme.iter().enumerate() {
+            for drive in self.nvme.iter() {
                 match drive {
-                    Ok(info) => writeln!(f, "{}. {}", i + 1, info)?,
-                    Err(err) => writeln!(f, "{}. Failed: {}", i + 1, err)?,
+                    Ok(info) => writeln!(f, "{}. {}", index + 1, info)?,
+                    Err(err) => writeln!(f, "{}. Failed: {}", index + 1, err)?,
                 }
+                writeln!(f, "")?;
+                index += 1;
             }
         }
         Ok(())

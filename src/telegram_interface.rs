@@ -140,7 +140,6 @@ fn start_smart_check(
 async fn send_prepare_message(bot: &Bot, chat_id: ChatId, drives: &Drives, can_proceed: bool) {
     let mut message = String::new();
     message.push_str(drives.to_string().as_str());
-    message.push_str("\n\n");
     if !can_proceed {
         message.push_str("All drives failed to prepare for smart check, no test will be performed");
     } else {

@@ -16,9 +16,10 @@ impl Display for NvmeDriveInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "<b>{}</b>\n{} ({})",
+            "<b>{}</b>\n{} {} ({})",
             self.model_name,
             format_bytes(self.user_capacity.bytes),
+            self.device.protocol,
             self.device.name
         )
     }

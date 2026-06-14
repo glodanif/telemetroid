@@ -31,9 +31,10 @@ impl Display for AtaDriveInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(
             f,
-            "<b>{}</b>\n{} ({})",
+            "<b>{}</b>\n{} {} ({})",
             self.model_name,
             format_bytes(self.user_capacity.bytes),
+            self.device.protocol,
             self.device.name
         )
     }
