@@ -29,11 +29,12 @@ fn check_progress(drive: &NvmeDriveInfo) -> Result<SmartCheckResult, SmartCheckF
                 if info.is_running() {
                     println!(
                         "Test for {} is in progress: {}%",
-                        info.nvme_self_test_log.current_self_test_completion_percent.unwrap_or(0),
                         drive.device.name
+                        info.nvme_self_test_log.current_self_test_completion_percent.unwrap_or(0),
                     )
                 } else {
-                    let result = info.get_result_by_hour(drive.power_on_time.hours)
+                    let result = info
+                        .get_result_by_hour(drive.power_on_time.hours)
                         .or_else(|| info.get_result_by_hour(info.power_on_time.hours));
                     return match result {
                         None => Err(SmartCheckFailure {
