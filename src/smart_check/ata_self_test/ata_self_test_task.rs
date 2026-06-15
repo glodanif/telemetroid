@@ -4,7 +4,7 @@ use crate::smart_check::smart_ctl_interface::{get_ata_drive_info, launch_short_t
 use std::thread::sleep;
 use std::time::Duration;
 
-const GRACE_PERIOD_MULTIPLIER: f32 = 1.5;
+const GRACE_PERIOD_MULTIPLIER: f32 = 0.3;
 
 pub fn start_shot_ata_self_test(
     drive: &AtaDriveInfo,
@@ -17,22 +17,23 @@ pub fn start_shot_ata_self_test(
 }
 
 fn wait_for_result(drive: &AtaDriveInfo) -> Result<SmartCheckResult, SmartCheckFailure> {
-    let estimated_duration = drive.ata_smart_data.get_polling_minutes();
+    let estimated_duration = Duration::from_mins(drive.ata_smart_data.get_polling_minutes());
     let result = wait_and_check_result(drive, estimated_duration);
     match result {
         Ok(r) => Ok(r),
         Err(e) => {
-            let grace_period = (estimated_duration as f32 * GRACE_PERIOD_MULTIPLIER) as u64;
-            wait_and_check_result(drive, grace_period)
+            let grace_period =
+                (estimated_duration.as_secs() as f32 * GRACE_PERIOD_MULTIPLIER) as u64;
+            wait_and_check_result(drive, Duration::from_secs(grace_period))
         }
     }
 }
 
 fn wait_and_check_result(
     drive: &AtaDriveInfo,
-    duration_mins: u64,
+    wait_duration: Duration,
 ) -> Result<SmartCheckResult, SmartCheckFailure> {
-    sleep(Duration::from_mins(duration_mins));
+    sleep(wait_duration);
     let check_result = get_ata_drive_info(drive.device.name.as_str());
     match check_result {
         Ok(info) => {
