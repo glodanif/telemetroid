@@ -1,11 +1,14 @@
-use crate::smart_check::drive_info::DriveInfo;
+use crate::smart_check::ata_self_test::ata_drive_info::AtaDriveInfo;
 use crate::smart_check::smart_check_result::{SmartCheckFailure, SmartCheckResult};
 use crate::smart_check::smart_ctl_interface::{get_ata_drive_info, launch_short_test};
+use std::thread::sleep;
 use std::time::Duration;
 
-const TIMEOUT: Duration = Duration::from_secs(300);
+const GRACE_PERIOD_MULTIPLIER: f32 = 1.5;
 
-pub fn start_shot_ata_self_test(drive: &DriveInfo) -> Result<SmartCheckResult, SmartCheckFailure> {
+pub fn start_shot_ata_self_test(
+    drive: &AtaDriveInfo,
+) -> Result<SmartCheckResult, SmartCheckFailure> {
     let result = launch_short_test(drive.device.name.as_str());
     match result {
         Ok(()) => wait_for_result(drive),
@@ -13,13 +16,44 @@ pub fn start_shot_ata_self_test(drive: &DriveInfo) -> Result<SmartCheckResult, S
     }
 }
 
-fn wait_for_result(drive: &DriveInfo) -> Result<SmartCheckResult, SmartCheckFailure> {
-    let check_result = get_ata_drive_info(drive.device.name.as_str());
-    match check_result {
-        Ok(info) => {}
+fn wait_for_result(drive: &AtaDriveInfo) -> Result<SmartCheckResult, SmartCheckFailure> {
+    let estimated_duration = drive.ata_smart_data.get_polling_minutes();
+    let result = wait_and_check_result(drive, estimated_duration);
+    match result {
+        Ok(r) => Ok(r),
         Err(e) => {
-            eprintln!("Failed to get drive info: {}", e);
+            let grace_period = (estimated_duration as f32 * GRACE_PERIOD_MULTIPLIER) as u64;
+            wait_and_check_result(drive, grace_period)
         }
     }
-    todo!()
+}
+
+fn wait_and_check_result(
+    drive: &AtaDriveInfo,
+    duration_mins: u64,
+) -> Result<SmartCheckResult, SmartCheckFailure> {
+    sleep(Duration::from_mins(duration_mins));
+    let check_result = get_ata_drive_info(drive.device.name.as_str());
+    match check_result {
+        Ok(info) => {
+            let result = info
+                .get_result_by_hour(drive.power_on_time.hours)
+                .or_else(|| info.get_result_by_hour(info.power_on_time.hours));
+            match result {
+                None => Err(SmartCheckFailure {
+                    drive_name: drive.device.name.clone(),
+                    message: "Test failed to start".to_string(),
+                }),
+                Some(log) => Ok(SmartCheckResult {
+                    drive_name: drive.device.name.clone(),
+                    power_on_time: info.power_on_time.hours,
+                    passed: log.status.passed,
+                }),
+            }
+        }
+        Err(e) => Err(SmartCheckFailure {
+            drive_name: drive.device.name.clone(),
+            message: e.to_string(),
+        }),
+    }
 }

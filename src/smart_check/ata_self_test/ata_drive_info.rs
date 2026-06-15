@@ -1,3 +1,4 @@
+use crate::smart_check::ata_self_test::ata_self_test_log::{AtaSmartSelfTestLog, LogEntry};
 use crate::smart_check::common::device_info_parts::{Device, PowerOnTime, UserCapacity};
 use crate::text_utils::format_bytes;
 use serde::Deserialize;
@@ -10,11 +11,32 @@ pub struct AtaDriveInfo {
     pub user_capacity: UserCapacity,
     pub ata_smart_data: AtaSmartData,
     pub device: Device,
+    pub ata_smart_self_test_log: AtaSmartSelfTestLog,
+}
+
+impl AtaDriveInfo {
+    pub fn get_result_by_hour(&self, lifetime_hours: u64) -> Option<&LogEntry> {
+        self.ata_smart_self_test_log
+            .standard
+            .table
+            .as_ref()
+            .and_then(|table: &Vec<LogEntry>| {
+                table
+                    .iter()
+                    .find(|entry| entry.lifetime_hours == lifetime_hours)
+            })
+    }
 }
 
 #[derive(Debug, Deserialize)]
 pub struct AtaSmartData {
     pub self_test: SelfTest,
+}
+
+impl AtaSmartData {
+    pub fn get_polling_minutes(&self) -> u64 {
+        self.self_test.polling_minutes.short
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -24,7 +46,7 @@ pub struct SelfTest {
 
 #[derive(Debug, Deserialize)]
 pub struct PollingMinutes {
-    pub short: u32,
+    pub short: u64,
 }
 
 impl Display for AtaDriveInfo {

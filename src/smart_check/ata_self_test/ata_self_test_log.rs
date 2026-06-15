@@ -8,7 +8,7 @@ pub struct AtaSmartSelfTestLog {
 #[derive(Debug, Deserialize)]
 pub struct Standard {
     pub revision: u32,
-    pub table: Vec<LogEntry>,
+    pub table: Option<Vec<LogEntry>>,
 }
 
 #[derive(Debug, Deserialize)]
