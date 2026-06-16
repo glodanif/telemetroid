@@ -1,8 +1,6 @@
 mod command;
 
 use crate::info_collector;
-use crate::smart_check::ata_self_test::ata_drive_info::AtaDriveInfo;
-use crate::smart_check::drive_info::DriveInfo;
 use crate::smart_check::drives::Drives;
 use crate::smart_check::smart_check_task::{prepare_smart_check, smart_check};
 use crate::system_update;

@@ -18,18 +18,32 @@ pub struct NvmeDriveInfo {
 impl NvmeDriveInfo {
     pub fn is_running(&self) -> bool {
         self.nvme_self_test_log.current_self_test_operation.string == TEST_IN_PROGRESS
-            && self
-                .nvme_self_test_log
-                .current_self_test_completion_percent
-                .is_some()
     }
 
-    pub fn get_result_by_hour(&self, power_on_hours: u64) -> Option<&LogEntry> {
-        self.nvme_self_test_log.table.as_ref().and_then(|table| {
-            table
-                .iter()
-                .find(|entry| entry.power_on_hours == power_on_hours)
-        })
+    pub fn table_snapshot(&self) -> Vec<(u64, u64, u64)> {
+        self.nvme_self_test_log
+            .table
+            .as_ref()
+            .map(|table| {
+                table
+                    .iter()
+                    .map(|entry| {
+                        (
+                            entry.power_on_hours,
+                            entry.self_test_result.value,
+                            entry.self_test_code.value,
+                        )
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    pub fn latest_result(&self) -> Option<&LogEntry> {
+        self.nvme_self_test_log
+            .table
+            .as_ref()
+            .and_then(|table| table.first())
     }
 }
 
