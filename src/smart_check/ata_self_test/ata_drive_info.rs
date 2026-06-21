@@ -15,20 +15,6 @@ pub struct AtaDriveInfo {
 }
 
 impl AtaDriveInfo {
-    pub fn table_snapshot(&self) -> Vec<(u64, u32)> {
-        self.ata_smart_self_test_log
-            .standard
-            .table
-            .as_ref()
-            .map(|table| {
-                table
-                    .iter()
-                    .map(|entry| (entry.lifetime_hours, entry.status.value))
-                    .collect()
-            })
-            .unwrap_or_default()
-    }
-
     pub fn latest_result(&self) -> Option<&LogEntry> {
         self.ata_smart_self_test_log
             .standard

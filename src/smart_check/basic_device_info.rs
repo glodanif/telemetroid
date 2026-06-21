@@ -3,6 +3,7 @@ pub struct BasicDeviceInfo {
     pub interface: DeviceInterface,
 }
 
+#[derive(Debug)]
 pub enum DeviceInterface {
     Ata,
     Nvme,

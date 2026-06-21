@@ -1,22 +1,18 @@
 mod command;
 
 use crate::info_collector;
-use crate::smart_check::drives::Drives;
-use crate::smart_check::smart_check_task::{prepare_smart_check, smart_check};
+use crate::smart_check::smart_check_task::get_drives_info;
 use crate::system_update;
 use crate::telegram_interface::command::Command;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use teloxide::dispatching::{Dispatcher, HandlerExt, UpdateFilterExt};
 use teloxide::payloads::SendMessageSetters;
 use teloxide::requests::{Requester, ResponseResult};
 use teloxide::types::{ChatId, Message, ParseMode, Update};
 use teloxide::utils::command::BotCommands;
-use teloxide::{Bot, dptree};
+use teloxide::Bot;
 
 pub async fn start_bot() {
     let bot = Bot::from_env();
-    let is_smart_check_running = Arc::new(AtomicBool::new(false));
 
     Dispatcher::builder(
         bot,
@@ -24,18 +20,12 @@ pub async fn start_bot() {
             .filter_command::<Command>()
             .endpoint(answer),
     )
-    .dependencies(dptree::deps![is_smart_check_running])
     .build()
     .dispatch()
     .await;
 }
 
-async fn answer(
-    bot: Bot,
-    msg: Message,
-    cmd: Command,
-    is_smart_check_running: Arc<AtomicBool>,
-) -> ResponseResult<()> {
+async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
     match cmd {
         Command::Help => {
             bot.send_message(msg.chat.id, Command::descriptions().to_string())
@@ -66,25 +56,9 @@ async fn answer(
                 .await?
         }
         Command::SmartCheck => {
-            if is_smart_check_running.load(Ordering::Relaxed) {
-                bot.send_message(msg.chat.id, "Smart check is already running")
-                    .await?;
-                return Ok(());
-            }
-
-            let result = prepare_smart_check().await;
-            match result {
-                Ok(drives_info) => {
-                    let can_proceed = drives_info.is_any_not_failed();
-                    send_prepare_message(&bot, msg.chat.id, &drives_info, can_proceed).await;
-                    if can_proceed {
-                        start_smart_check(
-                            bot.clone(),
-                            msg.chat.id,
-                            is_smart_check_running.clone(),
-                            drives_info,
-                        );
-                    }
+            match get_drives_info() {
+                Ok(drives) => {
+                    send_message(&bot, msg.chat.id.clone(), drives.to_string().as_str()).await;
                 }
                 Err(err) => {
                     send_message(
@@ -99,51 +73,6 @@ async fn answer(
         }
     };
     Ok(())
-}
-
-fn start_smart_check(
-    bot: Bot,
-    chat_id: ChatId,
-    is_smart_check_running: Arc<AtomicBool>,
-    drives: Drives,
-) {
-    tokio::spawn(async move {
-        is_smart_check_running.store(true, Ordering::Relaxed);
-        let check_results = smart_check(drives).await;
-        let text = match check_results {
-            Ok(results) => format!(
-                "<b>Smart check results:</b>\n\n{}",
-                results
-                    .iter()
-                    .map(|r| {
-                        match r {
-                            Ok(result) => {
-                                format!("{}\n", result)
-                            }
-                            Err(error) => {
-                                format!("{}\n", error)
-                            }
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            ),
-            Err(e) => format!("Failed to perform smart check: {}", e),
-        };
-        send_message(&bot, chat_id.clone(), text.as_str()).await;
-        is_smart_check_running.store(false, Ordering::Relaxed);
-    });
-}
-
-async fn send_prepare_message(bot: &Bot, chat_id: ChatId, drives: &Drives, can_proceed: bool) {
-    let mut message = String::new();
-    message.push_str(drives.to_string().as_str());
-    if !can_proceed {
-        message.push_str("All drives failed to prepare for smart check, no test will be performed");
-    } else {
-        message.push_str("Smart check has started");
-    }
-    send_message(bot, chat_id, message.as_str()).await;
 }
 
 async fn send_message(bot: &Bot, chat_id: ChatId, text: &str) {

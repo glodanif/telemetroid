@@ -1,20 +1,16 @@
 use crate::smart_check::ata_self_test::ata_drive_info::AtaDriveInfo;
 use crate::smart_check::nvme_self_test::nvme_drive_info::NvmeDriveInfo;
-use crate::smart_check::smart_check_result::SmartCheckFailure;
 use std::fmt::{Display, Formatter};
+use crate::smart_check::smart_check_error::SmartCheckError;
 
 pub struct Drives {
-    pub ata: Vec<Result<AtaDriveInfo, SmartCheckFailure>>,
-    pub nvme: Vec<Result<NvmeDriveInfo, SmartCheckFailure>>,
+    pub ata: Vec<Result<AtaDriveInfo, SmartCheckError>>,
+    pub nvme: Vec<Result<NvmeDriveInfo, SmartCheckError>>,
 }
 
 impl Drives {
     pub fn is_empty(&self) -> bool {
         self.ata.is_empty() && self.nvme.is_empty()
-    }
-
-    pub fn is_any_not_failed(&self) -> bool {
-        self.ata.iter().any(|r| r.is_ok()) || self.nvme.iter().any(|r| r.is_ok())
     }
 
     pub fn len(&self) -> usize {

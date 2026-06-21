@@ -2,7 +2,6 @@ use crate::smart_check::ata_self_test::ata_drive_info::AtaDriveInfo;
 use crate::smart_check::basic_device_info::{BasicDeviceInfo, DeviceInterface};
 use crate::smart_check::nvme_self_test::nvme_drive_info::NvmeDriveInfo;
 use crate::smart_check::smart_check_error::SmartCheckError;
-use crate::smart_check::smart_check_result::SmartCheckFailure;
 use std::process::Command;
 
 const SMARTCTL: &str = "smartctl";
@@ -42,12 +41,6 @@ pub fn scan_drives() -> Result<Vec<BasicDeviceInfo>, SmartCheckError> {
         })
         .map(Ok)
         .collect()
-}
-
-pub fn launch_short_test(drive_name: &str) -> Result<(), SmartCheckFailure> {
-    execute_command(SMARTCTL, &["-t", "short", drive_name])
-        .map_err(|e| SmartCheckFailure::CommandFailed(drive_name.to_string(), e.to_string()))?;
-    Ok(())
 }
 
 fn execute_command(command: &str, arguments: &[&str]) -> Result<Vec<u8>, SmartCheckError> {
