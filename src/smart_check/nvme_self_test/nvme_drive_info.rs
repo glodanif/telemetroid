@@ -2,7 +2,7 @@ use crate::smart_check::common::device_info_parts::{
     Device, PowerOnTime, SmartStatus, Temperature, UserCapacity,
 };
 use crate::smart_check::nvme_self_test::nvme_self_test_log::{LogEntry, NvmeSelfTestLog};
-use crate::text_utils::format_bytes;
+use crate::text_utils::{format_bytes, pluralize};
 use serde::Deserialize;
 use std::fmt::{Display, Formatter};
 
@@ -71,7 +71,7 @@ impl Display for NvmeDriveInfo {
 
         write!(
             f,
-            "<b>{}</b>\n{} {} ({})\n{} · {}°C · wear {}%\n{} h · {} cycles · {} media errors",
+            "<b>{}</b>\n{} {} ({})\n{} · {}°C · wear {}%\n{} h · {} · {}",
             self.model_name,
             format_bytes(self.user_capacity.bytes),
             self.device.protocol,
@@ -80,8 +80,8 @@ impl Display for NvmeDriveInfo {
             self.temperature.current,
             health.percentage_used,
             self.power_on_time.hours,
-            health.power_cycles,
-            health.media_errors
+            pluralize(health.power_cycles, "cycle"),
+            pluralize(health.media_errors, "media error")
         )?;
 
         match self.latest_result() {

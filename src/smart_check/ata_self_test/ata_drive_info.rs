@@ -2,7 +2,7 @@ use crate::smart_check::ata_self_test::ata_self_test_log::{AtaSmartSelfTestLog, 
 use crate::smart_check::common::device_info_parts::{
     Device, EnduranceUsed, PowerOnTime, SmartStatus, Temperature, UserCapacity,
 };
-use crate::text_utils::format_bytes;
+use crate::text_utils::{format_bytes, pluralize};
 use serde::Deserialize;
 use std::fmt::{Display, Formatter, Result};
 
@@ -75,8 +75,9 @@ impl Display for AtaDriveInfo {
 
         write!(
             f,
-            "\n{} h · {} cycles",
-            self.power_on_time.hours, self.power_cycle_count
+            "\n{} h · {}",
+            self.power_on_time.hours,
+            pluralize(self.power_cycle_count, "cycle")
         )?;
 
         match self.latest_result() {

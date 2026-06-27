@@ -15,6 +15,14 @@ pub fn format_bytes(bytes: u64) -> String {
     }
 }
 
+pub fn pluralize(count: u64, unit: &str) -> String {
+    if count == 1 {
+        format!("{} {}", count, unit)
+    } else {
+        format!("{} {}s", count, unit)
+    }
+}
+
 pub fn format_number(n: f32) -> String {
     if n.fract() == 0.0 {
         format!("{}", n as u32)
