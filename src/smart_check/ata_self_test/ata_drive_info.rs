@@ -6,6 +6,16 @@ use crate::text_utils::{format_bytes, pluralize};
 use serde::Deserialize;
 use std::fmt::{Display, Formatter, Result};
 
+// SMART attributes that predict drive failure (Backblaze canary set), as
+// (id, label). A non-zero raw value on any of these warrants attention.
+const CANARY_ATTRIBUTES: &[(u32, &str)] = &[
+    (5, "Reallocated"),
+    (197, "Pending"),
+    (198, "Uncorrectable"),
+    (187, "Reported uncorrect"),
+    (188, "Command timeout"),
+];
+
 #[derive(Debug, Deserialize)]
 pub struct AtaDriveInfo {
     pub model_name: String,
@@ -16,6 +26,7 @@ pub struct AtaDriveInfo {
     pub temperature: Temperature,
     pub endurance_used: Option<EnduranceUsed>,
     pub ata_smart_data: AtaSmartData,
+    pub ata_smart_attributes: Option<AtaSmartAttributes>,
     pub device: Device,
     pub ata_smart_self_test_log: AtaSmartSelfTestLog,
 }
@@ -28,6 +39,40 @@ impl AtaDriveInfo {
             .as_ref()
             .and_then(|table| table.first())
     }
+
+    /// Non-zero canary attributes, formatted as "<label> <count>".
+    pub fn warnings(&self) -> Vec<String> {
+        let table = match self.ata_smart_attributes.as_ref().and_then(|a| a.table.as_ref()) {
+            Some(table) => table,
+            None => return Vec::new(),
+        };
+        CANARY_ATTRIBUTES
+            .iter()
+            .filter_map(|(id, label)| {
+                table
+                    .iter()
+                    .find(|attr| attr.id == *id)
+                    .filter(|attr| attr.raw.value > 0)
+                    .map(|attr| format!("{} {}", label, attr.raw.value))
+            })
+            .collect()
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AtaSmartAttributes {
+    pub table: Option<Vec<SmartAttribute>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SmartAttribute {
+    pub id: u32,
+    pub raw: AttributeRaw,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AttributeRaw {
+    pub value: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -85,8 +130,15 @@ impl Display for AtaDriveInfo {
                 f,
                 "\nLast self-test: {} ({} h)",
                 result.status.string, result.lifetime_hours
-            ),
-            None => write!(f, "\nLast self-test: none recorded"),
+            )?,
+            None => write!(f, "\nLast self-test: none recorded")?,
         }
+
+        let warnings = self.warnings();
+        if !warnings.is_empty() {
+            write!(f, "\n⚠️ {}", warnings.join(" · "))?;
+        }
+
+        Ok(())
     }
 }

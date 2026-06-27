@@ -24,6 +24,8 @@ pub struct NvmeDriveInfo {
 pub struct NvmeHealth {
     pub critical_warning: u8,
     pub percentage_used: u8,
+    pub available_spare: u8,
+    pub available_spare_threshold: u8,
     pub media_errors: u64,
     pub power_cycles: u64,
 }
@@ -58,6 +60,19 @@ impl NvmeDriveInfo {
             .as_ref()
             .and_then(|table| table.first())
     }
+
+    /// Pre-failure conditions worth surfacing, formatted for display.
+    pub fn warnings(&self) -> Vec<String> {
+        let health = &self.nvme_smart_health_information_log;
+        let mut warnings = Vec::new();
+        if health.available_spare < health.available_spare_threshold {
+            warnings.push(format!(
+                "Spare {}% (below {}% threshold)",
+                health.available_spare, health.available_spare_threshold
+            ));
+        }
+        warnings
+    }
 }
 
 impl Display for NvmeDriveInfo {
@@ -89,8 +104,15 @@ impl Display for NvmeDriveInfo {
                 f,
                 "\nLast self-test: {} ({} h)",
                 result.self_test_result.string, result.power_on_hours
-            ),
-            None => write!(f, "\nLast self-test: none recorded"),
+            )?,
+            None => write!(f, "\nLast self-test: none recorded")?,
         }
+
+        let warnings = self.warnings();
+        if !warnings.is_empty() {
+            write!(f, "\n⚠️ {}", warnings.join(" · "))?;
+        }
+
+        Ok(())
     }
 }
