@@ -26,7 +26,7 @@ pub fn get_nvme_drive_info(drive_name: &str) -> Result<NvmeDriveInfo, SmartCheck
 }
 
 pub fn scan_drives() -> Result<Vec<BasicDeviceInfo>, SmartCheckError> {
-    let output = execute_command(SMARTCTL, &["--scan"])?;
+    let output = execute_command(SMARTCTL, &["--scan", "--json"])?;
     let json_str =
         String::from_utf8(output).map_err(|e| SmartCheckError::FormatError(e.to_string()))?;
     let result: ScanResult =
