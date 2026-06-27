@@ -1,8 +1,9 @@
 use crate::smart_check::ata_self_test::ata_drive_info::AtaDriveInfo;
-use crate::smart_check::basic_device_info::{BasicDeviceInfo, DeviceInterface};
+use crate::smart_check::basic_device_info::BasicDeviceInfo;
 use crate::smart_check::nvme_self_test::nvme_drive_info::NvmeDriveInfo;
 use crate::smart_check::smart_check_error::SmartCheckError;
 use std::process::Command;
+use crate::smart_check::scan_result::ScanResult;
 
 const SMARTCTL: &str = "smartctl";
 
@@ -26,21 +27,11 @@ pub fn get_nvme_drive_info(drive_name: &str) -> Result<NvmeDriveInfo, SmartCheck
 
 pub fn scan_drives() -> Result<Vec<BasicDeviceInfo>, SmartCheckError> {
     let output = execute_command(SMARTCTL, &["--scan"])?;
-    output
-        .split(|&c| c == b'\n')
-        .filter_map(|line| {
-            let line = String::from_utf8_lossy(line);
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() < 3 {
-                return None;
-            }
-            Some(BasicDeviceInfo {
-                name: parts[0].to_string(),
-                interface: DeviceInterface::from(parts[2]),
-            })
-        })
-        .map(Ok)
-        .collect()
+    let json_str =
+        String::from_utf8(output).map_err(|e| SmartCheckError::FormatError(e.to_string()))?;
+    let result: ScanResult =
+        serde_json::from_str(&json_str).map_err(|e| SmartCheckError::FormatError(e.to_string()))?;
+    Ok(result.devices)
 }
 
 fn execute_command(command: &str, arguments: &[&str]) -> Result<Vec<u8>, SmartCheckError> {

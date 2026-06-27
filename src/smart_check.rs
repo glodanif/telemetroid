@@ -7,3 +7,4 @@ pub mod ata_self_test;
 pub mod basic_device_info;
 pub mod common;
 pub mod drives;
+pub mod scan_result;

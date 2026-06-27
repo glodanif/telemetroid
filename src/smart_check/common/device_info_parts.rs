@@ -17,3 +17,18 @@ pub struct Device {
 pub struct UserCapacity {
     pub bytes: u64,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct SmartStatus {
+    pub passed: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Temperature {
+    pub current: i64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct EnduranceUsed {
+    pub current_percent: u8,
+}

@@ -11,7 +11,7 @@ pub fn get_drives_info() -> Result<Drives, SmartCheckError> {
     let mut nvme_results = Vec::new();
     for drive in drives.iter() {
         let name = drive.name.as_str();
-        match drive.interface {
+        match drive.protocol {
             DeviceInterface::Ata => ata_results.push(run(name, get_ata_drive_info)),
             DeviceInterface::Nvme => nvme_results.push(run(name, get_nvme_drive_info)),
             DeviceInterface::Unsupported => {}
