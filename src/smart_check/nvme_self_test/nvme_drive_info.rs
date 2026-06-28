@@ -98,8 +98,8 @@ impl Display for NvmeDriveInfo {
         match self.latest_result() {
             Some(result) => write!(
                 f,
-                "\nLast self-test: {} ({} h)",
-                result.self_test_result.string, result.power_on_hours
+                "\nLast self-test: {} — {} ({} h)",
+                result.self_test_code.string, result.self_test_result.string, result.power_on_hours
             )?,
             None => write!(f, "\nLast self-test: none recorded")?,
         }

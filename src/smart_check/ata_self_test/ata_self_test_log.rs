@@ -13,10 +13,18 @@ pub struct Standard {
 
 #[derive(Debug, Deserialize)]
 pub struct LogEntry {
+    #[serde(rename = "type")]
+    pub test_type: TestType,
     pub status: Status,
     pub lifetime_hours: u64,
     // The LBA of the first error; smartctl only emits this for a failed test.
     pub lba: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TestType {
+    // e.g. "Short offline", "Extended offline", "Conveyance offline".
+    pub string: String,
 }
 
 impl LogEntry {

@@ -157,8 +157,8 @@ impl Display for AtaDriveInfo {
         match self.latest_result() {
             Some(result) => write!(
                 f,
-                "\nLast self-test: {} ({} h)",
-                result.status.string, result.lifetime_hours
+                "\nLast self-test: {} — {} ({} h)",
+                result.test_type.string, result.status.string, result.lifetime_hours
             )?,
             None => write!(f, "\nLast self-test: none recorded")?,
         }
