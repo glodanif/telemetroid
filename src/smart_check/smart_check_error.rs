@@ -1,9 +1,10 @@
 use thiserror::Error;
+use crate::command_runner::CommandError;
 
 #[derive(Debug, Error)]
 pub enum SmartCheckError {
-    #[error("Failed to execute \"{0}\" command: {1}")]
-    CommandExecutionError(String, String),
+    #[error(transparent)]
+    CommandExecutionError(#[from] CommandError),
     #[error("Unable to scan for drives: {0}")]
     ScanError(String),
     #[error("Unable to parse smartctl output: {0}")]

@@ -11,4 +11,6 @@ pub enum Command {
     Updates,
     #[command(description = "Smartools check")]
     SmartCheck,
+    #[command(description = "Run btrfs scrub on all mounted filesystems")]
+    Scrub,
 }

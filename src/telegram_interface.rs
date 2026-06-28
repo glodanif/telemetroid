@@ -1,7 +1,8 @@
 mod command;
 
+use crate::btrfs::scrub_task::run_btrfs_scrub;
 use crate::info_collector;
-use crate::smart_check::smart_check_task::get_drives_info;
+use crate::smart_check::smart_check::get_drives_info;
 use crate::system_update;
 use crate::telegram_interface::command::Command;
 use teloxide::dispatching::{Dispatcher, HandlerExt, UpdateFilterExt};
@@ -65,6 +66,22 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                         &bot,
                         msg.chat.id,
                         format!("Failed to prepare smart check: {}", err).as_str(),
+                    )
+                    .await;
+                }
+            }
+            return Ok(());
+        }
+        Command::Scrub => {
+            match run_btrfs_scrub().await {
+                Ok(report) => {
+                    send_message(&bot, msg.chat.id, report.to_string().as_str()).await;
+                }
+                Err(err) => {
+                    send_message(
+                        &bot,
+                        msg.chat.id,
+                        format!("Failed to run scrub: {}", err).as_str(),
                     )
                     .await;
                 }
