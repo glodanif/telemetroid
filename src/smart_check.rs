@@ -1,4 +1,6 @@
 pub mod smart_check;
+pub mod self_test_task;
+pub mod self_test_report;
 pub mod smart_check_error;
 pub mod drive_info;
 pub mod nvme_self_test;

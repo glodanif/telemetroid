@@ -40,6 +40,27 @@ impl AtaDriveInfo {
             .and_then(|table| table.first())
     }
 
+    /// True while a self-test is executing (smartctl reports a remaining percentage).
+    pub fn is_running(&self) -> bool {
+        self.ata_smart_data.self_test.status.remaining_percent.is_some()
+    }
+
+    /// Identity of each logged self-test, as (lifetime_hours, status value). Used to
+    /// detect that a freshly launched test has produced a new log entry.
+    pub fn table_snapshot(&self) -> Vec<(u64, u64)> {
+        self.ata_smart_self_test_log
+            .standard
+            .table
+            .as_ref()
+            .map(|table| {
+                table
+                    .iter()
+                    .map(|entry| (entry.lifetime_hours, entry.status.value as u64))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
     /// Non-zero canary attributes, formatted as "<label> <count>".
     pub fn warnings(&self) -> Vec<String> {
         let table = match self.ata_smart_attributes.as_ref().and_then(|a| a.table.as_ref()) {
@@ -88,12 +109,20 @@ impl AtaSmartData {
 
 #[derive(Debug, Deserialize)]
 pub struct SelfTest {
+    pub status: SelfTestStatus,
     pub polling_minutes: PollingMinutes,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SelfTestStatus {
+    // Present only while a self-test is in progress; absent once it has finished.
+    pub remaining_percent: Option<u8>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct PollingMinutes {
     pub short: u64,
+    pub extended: u64,
 }
 
 impl Display for AtaDriveInfo {

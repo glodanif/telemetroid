@@ -11,6 +11,10 @@ pub enum Command {
     Updates,
     #[command(description = "Smartools check")]
     SmartCheck,
+    #[command(description = "Run a short SMART self-test on all drives")]
+    SmartTestShort,
+    #[command(description = "Run a long SMART self-test on all drives")]
+    SmartTestLong,
     #[command(description = "Run btrfs scrub on all mounted filesystems")]
     Scrub,
 }

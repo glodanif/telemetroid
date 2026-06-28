@@ -3,7 +3,9 @@ mod command;
 use crate::btrfs::btrfs_error::BtrfsError;
 use crate::btrfs::scrub_task::run_btrfs_scrub;
 use crate::info_collector;
+use crate::smart_check::self_test_task::{run_long_self_test, run_short_self_test};
 use crate::smart_check::smart_check::get_drives_info;
+use crate::smart_check::smart_check_error::SmartCheckError;
 use crate::system_update;
 use crate::telegram_interface::command::Command;
 use teloxide::dispatching::{Dispatcher, HandlerExt, UpdateFilterExt};
@@ -73,6 +75,14 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
             }
             return Ok(());
         }
+        Command::SmartTestShort => {
+            run_self_test(&bot, msg.chat.id, "short", run_short_self_test().await).await;
+            return Ok(());
+        }
+        Command::SmartTestLong => {
+            run_self_test(&bot, msg.chat.id, "long", run_long_self_test().await).await;
+            return Ok(());
+        }
         Command::Scrub => {
             match run_btrfs_scrub().await {
                 Ok(report) => {
@@ -99,6 +109,35 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
         }
     };
     Ok(())
+}
+
+async fn run_self_test(
+    bot: &Bot,
+    chat_id: ChatId,
+    kind: &str,
+    result: Result<crate::smart_check::self_test_report::SelfTestReport, SmartCheckError>,
+) {
+    match result {
+        Ok(report) => {
+            send_message(
+                bot,
+                chat_id,
+                format!("<b>SMART {} self-test result:</b>\n\n{}", kind, report).as_str(),
+            )
+            .await;
+        }
+        Err(SmartCheckError::AlreadyRunningError()) => {
+            send_message(bot, chat_id, "⏳ A SMART self-test is already in progress").await;
+        }
+        Err(err) => {
+            send_message(
+                bot,
+                chat_id,
+                format!("Failed to run {} self-test: {}", kind, err).as_str(),
+            )
+            .await;
+        }
+    }
 }
 
 async fn send_message(bot: &Bot, chat_id: ChatId, text: &str) {

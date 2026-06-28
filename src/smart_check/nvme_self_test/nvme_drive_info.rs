@@ -6,8 +6,6 @@ use crate::text_utils::{format_bytes, pluralize};
 use serde::Deserialize;
 use std::fmt::{Display, Formatter};
 
-const TEST_IN_PROGRESS: &str = "Short self-test in progress";
-
 #[derive(Debug, Deserialize)]
 pub struct NvmeDriveInfo {
     pub model_name: String,
@@ -31,24 +29,22 @@ pub struct NvmeHealth {
 }
 
 impl NvmeDriveInfo {
+    /// True while any self-test (short or extended) is executing. A `current_self_test_operation`
+    /// value of 0 means "No self-test in progress".
     pub fn is_running(&self) -> bool {
-        self.nvme_self_test_log.current_self_test_operation.string == TEST_IN_PROGRESS
+        self.nvme_self_test_log.current_self_test_operation.value != 0
     }
 
-    pub fn table_snapshot(&self) -> Vec<(u64, u64, u64)> {
+    /// Identity of each logged self-test, as (power_on_hours, result value). Used to detect
+    /// that a freshly launched test has produced a new log entry.
+    pub fn table_snapshot(&self) -> Vec<(u64, u64)> {
         self.nvme_self_test_log
             .table
             .as_ref()
             .map(|table| {
                 table
                     .iter()
-                    .map(|entry| {
-                        (
-                            entry.power_on_hours,
-                            entry.self_test_result.value,
-                            entry.self_test_code.value,
-                        )
-                    })
+                    .map(|entry| (entry.power_on_hours, entry.self_test_result.value))
                     .collect()
             })
             .unwrap_or_default()

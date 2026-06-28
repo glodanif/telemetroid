@@ -27,3 +27,13 @@ pub fn scan_drives() -> Result<Vec<BasicDeviceInfo>, SmartCheckError> {
     let result: ScanResult = run_smartctl(&["--scan", "--json"])?;
     Ok(result.devices)
 }
+
+/// Launches a self-test on a drive. `test_type` is the smartctl `-t` argument
+/// (`"short"` or `"long"`). smartctl returns immediately; the test runs on the drive
+/// in the background, so the caller must poll for completion afterwards.
+pub fn launch_self_test(drive_name: &str, test_type: &str) -> Result<(), SmartCheckError> {
+    // Bits 0 and 1 of smartctl's exit code flag a usage or device-open error; anything
+    // else (e.g. existing SMART warnings on the drive) is not a launch failure.
+    run_command(SMARTCTL, &["-t", test_type, drive_name], |code| code & 0b11 != 0)?;
+    Ok(())
+}
