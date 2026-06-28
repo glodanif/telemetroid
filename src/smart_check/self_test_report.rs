@@ -6,6 +6,8 @@ pub struct SelfTestOutcome {
     pub passed: bool,
     pub status: String,
     pub power_on_hours: u64,
+    /// Failure detail (e.g. failing LBA/segment), present only when a test failed.
+    pub detail: Option<String>,
 }
 
 /// Outcome of running a self-test on every drive. Each entry keeps its device name so a
@@ -27,7 +29,11 @@ impl SelfTestReport {
 impl Display for SelfTestOutcome {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let badge = if self.passed { "✅ Passed" } else { "❌ FAILED" };
-        write!(f, "{} · {} ({} h)", badge, self.status, self.power_on_hours)
+        write!(f, "{} · {} ({} h)", badge, self.status, self.power_on_hours)?;
+        if let Some(detail) = &self.detail {
+            write!(f, "\n⚠️ {}", detail)?;
+        }
+        Ok(())
     }
 }
 

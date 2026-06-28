@@ -229,6 +229,7 @@ impl SelfTestDrive for AtaDriveInfo {
             passed: entry.status.passed,
             status: entry.status.string.clone(),
             power_on_hours: self.power_on_time.hours,
+            detail: (!entry.status.passed).then(|| entry.failure_detail()).flatten(),
         })
     }
 
@@ -265,10 +266,14 @@ impl SelfTestDrive for NvmeDriveInfo {
     }
 
     fn outcome(&self) -> Option<SelfTestOutcome> {
-        self.latest_result().map(|entry| SelfTestOutcome {
-            passed: entry.has_completed_without_error(),
-            status: entry.self_test_result.string.clone(),
-            power_on_hours: entry.power_on_hours,
+        self.latest_result().map(|entry| {
+            let passed = entry.has_completed_without_error();
+            SelfTestOutcome {
+                passed,
+                status: entry.self_test_result.string.clone(),
+                power_on_hours: entry.power_on_hours,
+                detail: if passed { None } else { entry.failure_detail() },
+            }
         })
     }
 
