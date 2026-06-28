@@ -1,0 +1,8 @@
+#!/bin/sh
+# Weekly short SMART self-test, Monday 03:00.
+#
+# snooze fires at exactly the matching minute boundary, runs the command, then
+# exits; runit restarts it and it computes the next Monday. `sv 1 telemetroid`
+# delivers SIGUSR1 to the supervised bot (SIGUSR1 = short self-test).
+exec 2>&1
+exec snooze -w 1 -H 3 -M 0 sv 1 telemetroid

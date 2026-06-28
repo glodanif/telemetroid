@@ -1,0 +1,4 @@
+# chpst -e reads this directory: each file name is an env var, its first line the value.
+# Create these on the host (do NOT commit secrets):
+#   printf '%s' '<bot-token>' > TELOXIDE_TOKEN          && chmod 600 TELOXIDE_TOKEN
+#   printf '%s' '<chat-id>'   > TELEMETROID_ADMIN_CHAT

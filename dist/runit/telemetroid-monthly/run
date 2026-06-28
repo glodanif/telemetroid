@@ -1,0 +1,8 @@
+#!/bin/sh
+# Monthly btrfs scrub + long SMART self-test, 1st of the month at 04:00.
+#
+# `sv 2 telemetroid` delivers SIGUSR2 to the supervised bot (SIGUSR2 = scrub
+# followed by long self-test). While that combined run is active, manual
+# /scrub, /smart_test_long and /smart_test_short are rejected as "in progress".
+exec 2>&1
+exec snooze -d 1 -H 4 -M 0 sv 2 telemetroid

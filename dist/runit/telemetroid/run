@@ -1,0 +1,8 @@
+#!/bin/sh
+# Supervised telemetroid bot.
+#
+# Runs as root: smartctl and `btrfs scrub` need root privileges.
+# `exec` makes the binary the supervised process directly, so `sv 1`/`sv 2`
+# (from the scheduler services) deliver SIGUSR1/SIGUSR2 straight to it.
+exec 2>&1
+exec chpst -e ./env /usr/local/bin/telemetroid

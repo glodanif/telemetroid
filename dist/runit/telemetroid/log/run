@@ -1,0 +1,4 @@
+#!/bin/sh
+# Timestamped, rotated logs via svlogd. Create the directory first:
+#   mkdir -p /var/log/telemetroid
+exec svlogd -tt /var/log/telemetroid
