@@ -1,5 +1,6 @@
 mod command;
 
+use crate::btrfs::btrfs_error::BtrfsError;
 use crate::btrfs::scrub_task::run_btrfs_scrub;
 use crate::info_collector;
 use crate::smart_check::smart_check::get_drives_info;
@@ -75,7 +76,15 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
         Command::Scrub => {
             match run_btrfs_scrub().await {
                 Ok(report) => {
-                    send_message(&bot, msg.chat.id, report.to_string().as_str()).await;
+                    send_message(
+                        &bot,
+                        msg.chat.id,
+                        format!("<b>Btrfs scrub result:</b>\n\n{}", report).as_str(),
+                    )
+                    .await;
+                }
+                Err(BtrfsError::AlreadyRunningError()) => {
+                    send_message(&bot, msg.chat.id, "⏳ A btrfs scrub is already in progress").await;
                 }
                 Err(err) => {
                     send_message(

@@ -11,4 +11,6 @@ pub enum BtrfsError {
     ScrubError(String),
     #[error("Unable to parse btrfs output: {0}")]
     FormatError(String),
+    #[error("btrfs scrub is already running on the system")]
+    AlreadyRunningError(),
 }
