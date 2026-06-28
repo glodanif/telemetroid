@@ -1,5 +1,6 @@
 pub mod info_collector;
 pub mod smart_check;
+mod maintenance;
 mod system_update;
 mod telegram_interface;
 pub mod text_utils;

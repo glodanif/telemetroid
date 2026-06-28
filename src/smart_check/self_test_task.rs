@@ -110,7 +110,7 @@ impl SelfTestRun {
     }
 }
 
-fn execute_self_test(kind: SmartTestKind) -> Result<SelfTestReport, SmartCheckError> {
+pub(crate) fn execute_self_test(kind: SmartTestKind) -> Result<SelfTestReport, SmartCheckError> {
     log::info!("Scanning for drives to run {} self-test", kind);
     let testable: Vec<_> = scan_drives()?
         .into_iter()

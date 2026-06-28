@@ -1,8 +1,10 @@
 mod command;
+mod signals;
 
 use crate::btrfs::btrfs_error::BtrfsError;
 use crate::btrfs::scrub_task::ScrubRun;
 use crate::info_collector;
+use crate::maintenance::{MaintenanceBusy, MaintenanceRun};
 use crate::smart_check::self_test_task::{SelfTestRun, SmartTestKind};
 use crate::smart_check::smart_check::get_drives_info;
 use crate::smart_check::smart_check_error::SmartCheckError;
@@ -17,6 +19,15 @@ use teloxide::Bot;
 
 pub async fn start_bot() {
     let bot = Bot::from_env();
+
+    write_pid_file();
+
+    match admin_chat_id() {
+        Some(chat_id) => signals::spawn(bot.clone(), chat_id),
+        None => log::warn!(
+            "TELEMETROID_ADMIN_CHAT is not set; signal-triggered maintenance is disabled"
+        ),
+    }
 
     Dispatcher::builder(
         bot,
@@ -162,6 +173,71 @@ async fn handle_scrub(bot: &Bot, chat_id: ChatId) {
         };
         send_message(&bot, chat_id, text.as_str()).await;
     });
+}
+
+/// Runs the monthly maintenance sequence (btrfs scrub, then a long SMART self-test) on a single
+/// reservation that holds both slots, so no manual scrub/self-test can interleave with it.
+async fn handle_maintenance(bot: &Bot, chat_id: ChatId) {
+    // Reserve both slots up front so we can give immediate, accurate feedback.
+    let run = match MaintenanceRun::begin() {
+        Ok(run) => run,
+        Err(MaintenanceBusy) => {
+            send_message(bot, chat_id, "⏳ A scrub or self-test is already in progress").await;
+            return;
+        }
+    };
+
+    send_message(
+        bot,
+        chat_id,
+        "▶️ Started monthly maintenance: btrfs scrub + long SMART self-test. I'll report back after each step.",
+    )
+    .await;
+
+    // Detach the (potentially hours-long) run so the bot stays responsive to other commands. The
+    // run holds both slots until this task ends, locking out manual scrub/self-test commands.
+    let bot = bot.clone();
+    tokio::spawn(async move {
+        let scrub_text = match run.run_scrub().await {
+            Ok(report) => format!("<b>Btrfs scrub result:</b>\n\n{}", report),
+            Err(err) => format!("Failed to run scrub: {}", err),
+        };
+        send_message(&bot, chat_id, scrub_text.as_str()).await;
+
+        let test_text = match run.run_long_test().await {
+            Ok(report) => format!("<b>SMART long self-test result:</b>\n\n{}", report),
+            Err(err) => format!("Failed to run long self-test: {}", err),
+        };
+        send_message(&bot, chat_id, test_text.as_str()).await;
+    });
+}
+
+/// Reads the admin chat id that scheduled (signal-triggered) reports are sent to.
+fn admin_chat_id() -> Option<ChatId> {
+    match std::env::var("TELEMETROID_ADMIN_CHAT") {
+        Ok(value) => match value.trim().parse::<i64>() {
+            Ok(id) => Some(ChatId(id)),
+            Err(_) => {
+                log::warn!("TELEMETROID_ADMIN_CHAT is not a valid chat id: {}", value);
+                None
+            }
+        },
+        Err(_) => None,
+    }
+}
+
+/// Writes the current process id to `TELEMETROID_PID_FILE` if set, so an external scheduler can
+/// `kill -USR1/-USR2 $(cat <file>)` to trigger maintenance. Best-effort: failures are logged.
+fn write_pid_file() {
+    let Ok(path) = std::env::var("TELEMETROID_PID_FILE") else {
+        return;
+    };
+    let pid = std::process::id();
+    if let Err(err) = std::fs::write(&path, pid.to_string()) {
+        log::error!("Failed to write PID file {}: {}", path, err);
+    } else {
+        log::info!("Wrote PID {} to {}", pid, path);
+    }
 }
 
 async fn send_message(bot: &Bot, chat_id: ChatId, text: &str) {

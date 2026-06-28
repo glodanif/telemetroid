@@ -60,7 +60,7 @@ impl ScrubRun {
     }
 }
 
-fn execute_scrub() -> Result<ScrubReport, BtrfsError> {
+pub(crate) fn execute_scrub() -> Result<ScrubReport, BtrfsError> {
     log::info!("Scanning for btrfs filesystems to scrub");
     let filesystems = scan_btrfs_filesystems()?;
     let results = filesystems
