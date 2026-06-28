@@ -80,19 +80,34 @@ impl Drop for SelfTestGuard {
     }
 }
 
-pub async fn run_short_self_test() -> Result<SelfTestReport, SmartCheckError> {
-    run_self_test(SmartTestKind::Short).await
+/// A reserved self-test slot. Holding one prevents another run from starting until it is
+/// dropped, which happens when `execute` finishes (however it exits).
+pub struct SelfTestRun {
+    _guard: SelfTestGuard,
 }
 
-pub async fn run_long_self_test() -> Result<SelfTestReport, SmartCheckError> {
-    run_self_test(SmartTestKind::Long).await
-}
+impl SelfTestRun {
+    /// Reserves the single self-test slot, or returns `AlreadyRunningError` if a run is already
+    /// in progress. Cheap and non-blocking — safe to call from an async handler to decide
+    /// whether to start before detaching the actual work.
+    pub fn begin() -> Result<Self, SmartCheckError> {
+        Ok(SelfTestRun {
+            _guard: SelfTestGuard::acquire()?,
+        })
+    }
 
-async fn run_self_test(kind: SmartTestKind) -> Result<SelfTestReport, SmartCheckError> {
-    // Held across the await; cleared on drop however this function exits.
-    let _guard = SelfTestGuard::acquire()?;
-    let report = task::spawn_blocking(move || execute_self_test(kind)).await??;
-    Ok(report)
+    /// Runs the self-test on every drive to completion, off the async runtime. The slot stays
+    /// reserved for the whole (potentially hours-long) duration and is released when this
+    /// future resolves.
+    pub async fn execute(self, kind: SmartTestKind) -> Result<SelfTestReport, SmartCheckError> {
+        let report = task::spawn_blocking(move || {
+            // Keep the run (and its slot guard) alive until the test finishes.
+            let _run = self;
+            execute_self_test(kind)
+        })
+        .await??;
+        Ok(report)
+    }
 }
 
 fn execute_self_test(kind: SmartTestKind) -> Result<SelfTestReport, SmartCheckError> {

@@ -30,11 +30,34 @@ impl Drop for ScrubGuard {
     }
 }
 
-pub async fn run_btrfs_scrub() -> Result<ScrubReport, BtrfsError> {
-    // Held across the await; cleared on drop however this function exits.
-    let _guard = ScrubGuard::acquire()?;
-    let result = task::spawn_blocking(execute_scrub).await??;
-    Ok(result)
+/// A reserved scrub slot. Holding one prevents another run from starting until it is
+/// dropped, which happens when `execute` finishes (however it exits).
+pub struct ScrubRun {
+    _guard: ScrubGuard,
+}
+
+impl ScrubRun {
+    /// Reserves the single scrub slot, or returns `AlreadyRunningError` if a run is already in
+    /// progress. Cheap and non-blocking — safe to call from an async handler to decide whether
+    /// to start before detaching the actual work.
+    pub fn begin() -> Result<Self, BtrfsError> {
+        Ok(ScrubRun {
+            _guard: ScrubGuard::acquire()?,
+        })
+    }
+
+    /// Runs the scrub on every filesystem to completion, off the async runtime. The slot stays
+    /// reserved for the whole (potentially hours-long) duration and is released when this
+    /// future resolves.
+    pub async fn execute(self) -> Result<ScrubReport, BtrfsError> {
+        let report = task::spawn_blocking(move || {
+            // Keep the run (and its slot guard) alive until the scrub finishes.
+            let _run = self;
+            execute_scrub()
+        })
+        .await??;
+        Ok(report)
+    }
 }
 
 fn execute_scrub() -> Result<ScrubReport, BtrfsError> {

@@ -1,9 +1,9 @@
 mod command;
 
 use crate::btrfs::btrfs_error::BtrfsError;
-use crate::btrfs::scrub_task::run_btrfs_scrub;
+use crate::btrfs::scrub_task::ScrubRun;
 use crate::info_collector;
-use crate::smart_check::self_test_task::{run_long_self_test, run_short_self_test};
+use crate::smart_check::self_test_task::{SelfTestRun, SmartTestKind};
 use crate::smart_check::smart_check::get_drives_info;
 use crate::smart_check::smart_check_error::SmartCheckError;
 use crate::system_update;
@@ -76,68 +76,92 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
             return Ok(());
         }
         Command::SmartTestShort => {
-            run_self_test(&bot, msg.chat.id, "short", run_short_self_test().await).await;
+            handle_self_test(&bot, msg.chat.id, SmartTestKind::Short, "short").await;
             return Ok(());
         }
         Command::SmartTestLong => {
-            run_self_test(&bot, msg.chat.id, "long", run_long_self_test().await).await;
+            handle_self_test(&bot, msg.chat.id, SmartTestKind::Long, "long").await;
             return Ok(());
         }
         Command::Scrub => {
-            match run_btrfs_scrub().await {
-                Ok(report) => {
-                    send_message(
-                        &bot,
-                        msg.chat.id,
-                        format!("<b>Btrfs scrub result:</b>\n\n{}", report).as_str(),
-                    )
-                    .await;
-                }
-                Err(BtrfsError::AlreadyRunningError()) => {
-                    send_message(&bot, msg.chat.id, "⏳ A btrfs scrub is already in progress").await;
-                }
-                Err(err) => {
-                    send_message(
-                        &bot,
-                        msg.chat.id,
-                        format!("Failed to run scrub: {}", err).as_str(),
-                    )
-                    .await;
-                }
-            }
+            handle_scrub(&bot, msg.chat.id).await;
             return Ok(());
         }
     };
     Ok(())
 }
 
-async fn run_self_test(
-    bot: &Bot,
-    chat_id: ChatId,
-    kind: &str,
-    result: Result<crate::smart_check::self_test_report::SelfTestReport, SmartCheckError>,
-) {
-    match result {
-        Ok(report) => {
-            send_message(
-                bot,
-                chat_id,
-                format!("<b>SMART {} self-test result:</b>\n\n{}", kind, report).as_str(),
-            )
-            .await;
-        }
+async fn handle_self_test(bot: &Bot, chat_id: ChatId, kind: SmartTestKind, label: &'static str) {
+    // Reserve the slot up front so we can give immediate, accurate feedback.
+    let run = match SelfTestRun::begin() {
+        Ok(run) => run,
         Err(SmartCheckError::AlreadyRunningError()) => {
             send_message(bot, chat_id, "⏳ A SMART self-test is already in progress").await;
+            return;
         }
         Err(err) => {
             send_message(
                 bot,
                 chat_id,
-                format!("Failed to run {} self-test: {}", kind, err).as_str(),
+                format!("Failed to start {} self-test: {}", label, err).as_str(),
             )
             .await;
+            return;
         }
-    }
+    };
+
+    send_message(
+        bot,
+        chat_id,
+        format!(
+            "▶️ Started {} SMART self-test on all drives. I'll report back when it finishes.",
+            label
+        )
+        .as_str(),
+    )
+    .await;
+
+    // Detach the (potentially hours-long) run so the bot stays responsive to other commands.
+    let bot = bot.clone();
+    tokio::spawn(async move {
+        let text = match run.execute(kind).await {
+            Ok(report) => format!("<b>SMART {} self-test result:</b>\n\n{}", label, report),
+            Err(err) => format!("Failed to run {} self-test: {}", label, err),
+        };
+        send_message(&bot, chat_id, text.as_str()).await;
+    });
+}
+
+async fn handle_scrub(bot: &Bot, chat_id: ChatId) {
+    // Reserve the slot up front so we can give immediate, accurate feedback.
+    let run = match ScrubRun::begin() {
+        Ok(run) => run,
+        Err(BtrfsError::AlreadyRunningError()) => {
+            send_message(bot, chat_id, "⏳ A btrfs scrub is already in progress").await;
+            return;
+        }
+        Err(err) => {
+            send_message(bot, chat_id, format!("Failed to start scrub: {}", err).as_str()).await;
+            return;
+        }
+    };
+
+    send_message(
+        bot,
+        chat_id,
+        "▶️ Started btrfs scrub on all mounted filesystems. I'll report back when it finishes.",
+    )
+    .await;
+
+    // Detach the (potentially hours-long) run so the bot stays responsive to other commands.
+    let bot = bot.clone();
+    tokio::spawn(async move {
+        let text = match run.execute().await {
+            Ok(report) => format!("<b>Btrfs scrub result:</b>\n\n{}", report),
+            Err(err) => format!("Failed to run scrub: {}", err),
+        };
+        send_message(&bot, chat_id, text.as_str()).await;
+    });
 }
 
 async fn send_message(bot: &Bot, chat_id: ChatId, text: &str) {
