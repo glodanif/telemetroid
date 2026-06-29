@@ -53,9 +53,13 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                 .await?
         }
         Command::Updates => {
-            let text = match system_update::check_updates() {
-                Ok(updates) if updates.is_empty() => "System is up to date".to_string(),
-                Ok(updates) => format!(
+            // Offload to a blocking thread: check_updates() syncs the repodata over
+            // the network, so running it inline would stall the async runtime.
+            let result = tokio::task::spawn_blocking(system_update::check_updates).await;
+            let text = match result {
+                Err(e) => format!("Failed to check updates: {}", e),
+                Ok(Ok(updates)) if updates.is_empty() => "System is up to date".to_string(),
+                Ok(Ok(updates)) => format!(
                     "<b>Available updates: {}</b>\n\n{}",
                     updates.len(),
                     updates
@@ -64,7 +68,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                         .collect::<Vec<_>>()
                         .join("\n")
                 ),
-                Err(e) => format!("Failed to check updates: {}", e),
+                Ok(Err(e)) => format!("Failed to check updates: {}", e),
             };
             bot.send_message(msg.chat.id, text)
                 .parse_mode(ParseMode::Html)

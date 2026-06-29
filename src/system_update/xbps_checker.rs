@@ -4,17 +4,36 @@ use std::collections::HashMap;
 use std::process::Command;
 
 pub fn check_updates() -> Result<Vec<AvailablePackageUpdate>, UpdateCheckError> {
-    let output = Command::new("xbps-install")
-        .args(["-Sun"])
+    // Sync the repodata as its own step. In dry-run mode (`-n`) xbps-install
+    // skips the `-S` sync, so a combined `-Sun` checks against the stale local
+    // index and can report "up to date" while updates are actually pending.
+    let sync = Command::new("xbps-install")
+        .arg("-S")
         .output()
         .map_err(|e| {
-            UpdateCheckError::CommandExecutionError("xbps-install -Sun".to_string(), e.to_string())
+            UpdateCheckError::CommandExecutionError("xbps-install -S".to_string(), e.to_string())
         })?;
 
-    if !output.stderr.is_empty() {
+    if !sync.status.success() {
+        let stderr = String::from_utf8_lossy(&sync.stderr);
+        return Err(UpdateCheckError::CommandExecutionError(
+            "xbps-install -S".to_string(),
+            stderr.trim().to_string(),
+        ));
+    }
+
+    // Check pending updates against the freshly-synced index (read-only, no -S).
+    let output = Command::new("xbps-install")
+        .args(["-un"])
+        .output()
+        .map_err(|e| {
+            UpdateCheckError::CommandExecutionError("xbps-install -un".to_string(), e.to_string())
+        })?;
+
+    if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(UpdateCheckError::CommandExecutionError(
-            "xbps-install -Sun".to_string(),
+            "xbps-install -un".to_string(),
             stderr.trim().to_string(),
         ));
     }
