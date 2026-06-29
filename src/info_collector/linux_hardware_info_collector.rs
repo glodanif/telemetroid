@@ -414,38 +414,106 @@ fn parse_meminfo_kb(content: &str, key: &str) -> Option<u64> {
 }
 
 fn read_disks_info() -> Vec<DiskInfo> {
-    let output = match Command::new("df")
-        .args(["-B1", "--output=source,size,used,target,fstype"])
+    // Source from lsblk (actual block devices) rather than df: stale mounts to
+    // physically-removed drives no longer have a backing device and so drop out,
+    // while freshly-installed drives show up even before they're mounted.
+    let output = match Command::new("lsblk")
+        .args([
+            "-b",
+            "--json",
+            "-o",
+            "NAME,TYPE,FSTYPE,MOUNTPOINT,FSUSED,FSSIZE,SIZE",
+        ])
         .output()
     {
         Ok(o) if o.status.success() => o,
         _ => return vec![],
     };
 
-    let stdout = match String::from_utf8(output.stdout) {
-        Ok(s) => s,
+    let json: serde_json::Value = match serde_json::from_slice(&output.stdout) {
+        Ok(v) => v,
         Err(_) => return vec![],
     };
 
-    stdout
-        .lines()
-        .skip(1)
-        .filter_map(|line| {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() < 5 {
-                return None;
-            }
-            if !parts[0].starts_with("/dev/") {
-                return None;
-            }
-            Some(DiskInfo {
-                total: parts[1].parse().ok()?,
-                used: parts[2].parse().ok()?,
-                mount: parts[3].to_string(),
-                filesystem: parts[4].to_string(),
-            })
-        })
-        .collect()
+    let mut disks = Vec::new();
+    if let Some(devices) = json.get("blockdevices").and_then(|v| v.as_array()) {
+        for device in devices {
+            collect_disk_entries(device, &mut disks);
+        }
+    }
+
+    // A multi-device filesystem (e.g. btrfs) reports the same mountpoint on each
+    // member, so drop duplicate mounted rows.
+    let mut seen = std::collections::HashSet::new();
+    disks.retain(|d| d.used.is_none() || seen.insert(d.label.clone()));
+    disks
+}
+
+/// Walks one top-level device: emits a row for every mounted filesystem in its
+/// subtree, and if nothing in the whole device is mounted, a single bare row for
+/// the drive itself (a newly-installed, not-yet-mounted disk).
+fn collect_disk_entries(device: &serde_json::Value, out: &mut Vec<DiskInfo>) {
+    let before = out.len();
+    push_mounted_filesystems(device, out);
+    if out.len() == before {
+        if let Some(disk) = unmounted_disk(device) {
+            out.push(disk);
+        }
+    }
+}
+
+fn push_mounted_filesystems(node: &serde_json::Value, out: &mut Vec<DiskInfo>) {
+    if let Some(mount) = node.get("mountpoint").and_then(|v| v.as_str()) {
+        // Skip pseudo-mounts like "[SWAP]"; swap is reported separately.
+        if !mount.is_empty() && !mount.starts_with('[') {
+            let size = json_u64(node.get("fssize"))
+                .or_else(|| json_u64(node.get("size")))
+                .unwrap_or(0);
+            out.push(DiskInfo {
+                label: mount.to_string(),
+                filesystem: node
+                    .get("fstype")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown")
+                    .to_string(),
+                size,
+                used: Some(json_u64(node.get("fsused")).unwrap_or(0)),
+            });
+        }
+    }
+
+    if let Some(children) = node.get("children").and_then(|v| v.as_array()) {
+        for child in children {
+            push_mounted_filesystems(child, out);
+        }
+    }
+}
+
+fn unmounted_disk(device: &serde_json::Value) -> Option<DiskInfo> {
+    if device.get("type").and_then(|v| v.as_str()) != Some("disk") {
+        return None;
+    }
+    let name = device.get("name").and_then(|v| v.as_str())?.to_string();
+    let filesystem = match device.get("fstype").and_then(|v| v.as_str()) {
+        Some(fs) if !fs.is_empty() => format!("{fs}, not mounted"),
+        _ => "not mounted".to_string(),
+    };
+    Some(DiskInfo {
+        label: name,
+        filesystem,
+        size: json_u64(device.get("size")).unwrap_or(0),
+        used: None,
+    })
+}
+
+/// lsblk emits numeric fields as either JSON numbers or strings depending on the
+/// util-linux version, so accept both.
+fn json_u64(value: Option<&serde_json::Value>) -> Option<u64> {
+    match value? {
+        serde_json::Value::Number(n) => n.as_u64(),
+        serde_json::Value::String(s) => s.parse().ok(),
+        _ => None,
+    }
 }
 
 fn read_network_infos() -> Vec<NetworkInfo> {
@@ -463,6 +531,11 @@ fn read_network_infos() -> Vec<NetworkInfo> {
             if name == "lo" {
                 return None;
             }
+            // Skip interfaces that aren't operationally up (unplugged NICs, idle
+            // bridges like docker0) — they only add noise to the status output.
+            if !interface_is_up(&name) {
+                return None;
+            }
             let fields: Vec<u64> = rest
                 .split_whitespace()
                 .filter_map(|s| s.parse().ok())
@@ -476,6 +549,12 @@ fn read_network_infos() -> Vec<NetworkInfo> {
             Some(NetworkInfo { name, ip_address, rx_bytes, tx_bytes })
         })
         .collect()
+}
+
+fn interface_is_up(iface: &str) -> bool {
+    fs::read_to_string(format!("/sys/class/net/{iface}/operstate"))
+        .map(|s| s.trim() == "up")
+        .unwrap_or(false)
 }
 
 fn read_interface_ipv4(iface: &str) -> Option<String> {

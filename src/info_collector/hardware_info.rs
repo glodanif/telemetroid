@@ -31,10 +31,13 @@ pub struct MemoryInfo {
 }
 
 pub struct DiskInfo {
-    pub total: u64,
-    pub used: u64,
-    pub mount: String,
+    /// Mountpoint for a mounted filesystem, or the device name for an unmounted drive.
+    pub label: String,
     pub filesystem: String,
+    /// Filesystem size when mounted, otherwise the raw device size.
+    pub size: u64,
+    /// Used bytes when mounted; `None` for an unmounted drive (no usage stats).
+    pub used: Option<u64>,
 }
 
 pub struct NetworkInfo {

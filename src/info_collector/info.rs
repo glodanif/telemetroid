@@ -102,9 +102,16 @@ impl Display for Info {
             writeln!(f, "<b>Disk:</b> Unknown")?;
         } else {
             for disk in &hw.disks {
-                let pct = if disk.total > 0 { disk.used * 100 / disk.total } else { 0 };
-                writeln!(f, "<b>Disk {}:</b> {} / {} ({}%) — {}", disk.mount, format_bytes(disk.used), format_bytes(disk.total), pct, disk.filesystem)?;
-                writeln!(f, "{}", usage_bar(disk.used, disk.total, 10))?;
+                match disk.used {
+                    Some(used) => {
+                        let pct = if disk.size > 0 { used * 100 / disk.size } else { 0 };
+                        writeln!(f, "<b>Disk {}:</b> {} / {} ({}%) — {}", disk.label, format_bytes(used), format_bytes(disk.size), pct, disk.filesystem)?;
+                        writeln!(f, "{}", usage_bar(used, disk.size, 10))?;
+                    }
+                    None => {
+                        writeln!(f, "<b>Disk {}:</b> {} — {}", disk.label, format_bytes(disk.size), disk.filesystem)?;
+                    }
+                }
             }
         }
 

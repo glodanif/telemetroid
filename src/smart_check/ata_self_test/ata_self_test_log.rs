@@ -38,5 +38,8 @@ impl LogEntry {
 pub struct Status {
     pub value: u32,
     pub string: String,
+    // smartctl omits `passed` for tests that didn't complete (e.g. "Aborted by host"
+    // carries `remaining_percent` instead). Treat a missing value as not-passed.
+    #[serde(default)]
     pub passed: bool,
 }
