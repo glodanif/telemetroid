@@ -136,7 +136,7 @@ pub(crate) fn execute_self_test(kind: SmartTestKind) -> Result<SelfTestReport, S
     // drive finishes first.
     let results = thread::scope(|scope| {
         let handles: Vec<_> = testable
-            .iter()
+            .into_iter()
             .map(|drive| {
                 scope.spawn(move || {
                     let result = match drive.protocol {
@@ -147,7 +147,7 @@ pub(crate) fn execute_self_test(kind: SmartTestKind) -> Result<SelfTestReport, S
                     if let Err(err) = &result {
                         log::error!("{} self-test failed on {}: {}", kind, drive.name, err);
                     }
-                    (drive.name.clone(), result)
+                    (drive.name, result)
                 })
             })
             .collect();

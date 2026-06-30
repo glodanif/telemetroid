@@ -77,7 +77,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
         Command::SmartCheck => {
             match get_drives_info() {
                 Ok(drives) => {
-                    send_message(&bot, msg.chat.id.clone(), drives.to_string().as_str()).await;
+                    send_message(&bot, msg.chat.id, drives.to_string().as_str()).await;
                 }
                 Err(err) => {
                     send_message(
