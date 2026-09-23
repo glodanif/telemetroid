@@ -6,6 +6,7 @@ mod telegram_interface;
 pub mod text_utils;
 pub mod command_runner;
 pub mod btrfs;
+pub mod fstrim;
 
 use crate::telegram_interface::start_bot;
 

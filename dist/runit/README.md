@@ -5,7 +5,7 @@ Three runit services:
 | Service                | Role                                                        |
 |------------------------|-------------------------------------------------------------|
 | `telemetroid`          | The bot itself (supervised, runs as root).                  |
-| `telemetroid-weekly`   | Sends `SIGUSR1` (short SMART test) every Monday 03:00.       |
+| `telemetroid-weekly`   | Sends `SIGUSR1` (short SMART test + fstrim) every Monday 03:00. |
 | `telemetroid-monthly`  | Sends `SIGUSR2` (scrub + long test) on the 1st at 04:00.     |
 
 The scheduler services trigger the bot with `sv 1` / `sv 2`, which deliver
@@ -19,7 +19,9 @@ cargo build --release         # produces target/release/telemetroid
 install -m 755 target/release/telemetroid /usr/local/bin/telemetroid
 ```
 
-`smartmontools` (smartctl) and `btrfs-progs` must also be installed.
+`smartmontools` (smartctl) and `btrfs-progs` must also be installed. The weekly trim uses
+`fstrim` from `util-linux` (in `base-system`); it needs 2.36 or newer for
+`--quiet-unsupported`.
 
 ## Install
 
@@ -56,7 +58,7 @@ to report.
 
 ```sh
 sv status telemetroid            # check the bot
-sv 1 telemetroid                 # trigger a short test now (same as the weekly timer)
+sv 1 telemetroid                 # trigger short test + trim now (same as the weekly timer)
 sv 2 telemetroid                 # trigger scrub + long test now (same as the monthly timer)
 sv restart telemetroid           # restart after deploying a new binary
 tail -F /var/log/telemetroid/current

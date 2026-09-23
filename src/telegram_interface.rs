@@ -4,7 +4,7 @@ mod signals;
 use crate::btrfs::btrfs_error::BtrfsError;
 use crate::btrfs::scrub_task::ScrubRun;
 use crate::info_collector;
-use crate::maintenance::{MaintenanceBusy, MaintenanceRun};
+use crate::maintenance::{MaintenanceBusy, MaintenanceRun, WeeklyRun};
 use crate::smart_check::self_test_task::{SelfTestRun, SmartTestKind};
 use crate::smart_check::smart_check::get_drives_info;
 use crate::smart_check::smart_check_error::SmartCheckError;
@@ -213,6 +213,44 @@ async fn handle_maintenance(bot: &Bot, chat_id: ChatId) {
             Err(err) => format!("Failed to run long self-test: {}", err),
         };
         send_message(&bot, chat_id, test_text.as_str()).await;
+    });
+}
+
+/// Runs the weekly maintenance sequence (a short SMART self-test, then a filesystem trim) on a
+/// single reservation that holds the self-test slot, so no manual self-test can interleave with
+/// it and a monthly run cannot start on top of it.
+async fn handle_weekly_maintenance(bot: &Bot, chat_id: ChatId) {
+    // Reserve the slot up front so we can give immediate, accurate feedback.
+    let run = match WeeklyRun::begin() {
+        Ok(run) => run,
+        Err(MaintenanceBusy) => {
+            send_message(bot, chat_id, "⏳ A scrub or self-test is already in progress").await;
+            return;
+        }
+    };
+
+    send_message(
+        bot,
+        chat_id,
+        "▶️ Started weekly maintenance: short SMART self-test + filesystem trim. I'll report back after each step.",
+    )
+    .await;
+
+    // Detach the run so the bot stays responsive to other commands. It holds the self-test slot
+    // until this task ends, locking out manual self-test commands and the monthly run.
+    let bot = bot.clone();
+    tokio::spawn(async move {
+        let test_text = match run.run_short_test().await {
+            Ok(report) => format!("<b>SMART short self-test result:</b>\n\n{}", report),
+            Err(err) => format!("Failed to run short self-test: {}", err),
+        };
+        send_message(&bot, chat_id, test_text.as_str()).await;
+
+        let trim_text = match run.run_trim().await {
+            Ok(report) => format!("<b>Filesystem trim result:</b>\n\n{}", report),
+            Err(err) => format!("Failed to trim filesystems: {}", err),
+        };
+        send_message(&bot, chat_id, trim_text.as_str()).await;
     });
 }
 
